@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <a href="/teacher/dashboard" class="text-decoration-none text-muted mb-2 d-inline-block">&larr; Back to Dashboard</a>
+        <h2 class="fw-bold">Edit Exam Settings</h2>
+        <p class="text-muted">Modify schedule and parameters for <strong class="text-primary">{{ exam.title }}</strong>.</p>
+    </div>
+</div>
+
+<div class="card glass-card mx-auto" style="max-width: 600px;">
+    <div class="card-body p-4">
+        <form method="POST" action="/teacher/exam/{{ exam.id }}/settings">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Exam Title</label>
+                <input type="text" name="title" class="form-control" value="{{ exam.title }}" required>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Start Window</label>
+                    <input type="datetime-local" name="start_time" class="form-control" value="{{ start_time }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">End Window</label>
+                    <input type="datetime-local" name="end_time" class="form-control" value="{{ end_time }}" required>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="form-label fw-bold">Time Limit (Minutes)</label>
+                <input type="number" name="duration_minutes" class="form-control" value="{{ exam.duration_minutes }}" required min="1">
+            </div>
+            
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary-custom btn-lg">💾 Save Settings</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

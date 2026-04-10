@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+/* Fullscreen modal styling */
+#overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
+    z-index: 9999; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; text-align: center;
+}
+#video-container {
+    position: fixed; bottom: 20px; right: 20px;
+    width: 200px; height: 150px; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid var(--primary-color);
+    z-index: 1000; background: #000;
+}
+#video {
+    width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
+}
+.blurred { filter: blur(10px); pointer-events: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="overlay">
+    <div class="card glass-card p-5" style="max-width: 500px;">
+        <h2 class="fw-bold text-danger mb-3">Strict Proctoring Enabled</h2>
+        <p class="text-muted">This exam requires <strong>Fullscreen Mode</strong> and <strong>Webcam Access</strong> for AI Proctoring. Violations (exiting fullscreen, multiple faces, switching tabs) will be flagged. 5 Flags = Auto-Submit.</p>
+        <button id="startBtn" class="btn btn-primary-custom btn-lg w-100 mt-4">I Understand, Start Exam</button>
+    </div>
+</div>
+
+<div id="exam_content" class="blurred container-fluid py-4">
+    <form method="POST" action="/student/submit_exam/{{ exam.id }}" id="exam_form">
+        <div class="row">
+            <!-- Questions Column -->
+            <div class="col-lg-8 mb-4">
+                <div class="mb-4">
+                    <h2 class="fw-bold mb-1 text-primary">{{ exam.title }}</h2>
+                    <p class="text-muted mb-0 fw-medium">Total Duration: {{ exam.duration_minutes }} minutes</p>
+                </div>
+                
+                {% for q in questions %}
+                <div class="card glass-card mb-4 border-0 shadow-sm question-card" id="qcard-{{ loop.index }}">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="fw-bold mb-0" style="color: var(--text-color);">{{ loop.index }}. {{ q.text }}</h5>
+                            <button type="button" class="btn btn-sm btn-outline-warning bookmark-btn fw-bold ms-3 shadow-sm rounded-pill px-3" data-qindex="{{ loop.index }}" style="white-space: nowrap;">
+                                📌 Bookmark
+                            </button>
+                        </div>
+                        
+                        {% for opt in q.ops %}
+                        <div class="form-check mb-2 custom-radio-wrapper py-2 px-3 rounded" style="transition: all 0.2s;">
+                            <input class="form-check-input q-option border-secondary" type="radio" name="question_{{ q.id }}" id="opt_{{ opt.id }}" value="{{ opt.id }}" data-qindex="{{ loop.index }}">
+                            <label class="form-check-label w-100 ms-2" for="opt_{{ opt.id }}" style="cursor: pointer; color: var(--text-color);">
+                                {{ opt.text }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Navigation Palette Column -->
+            <div class="col-lg-4">
+                <div class="card glass-card border-0 shadow-sm sticky-top" style="top: 20px; z-index: 10;">
+                    <div class="card-header bg-transparent border-0 pt-4 pb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold mb-0">Question Palette</h5>
+                            <div class="timer fw-bold fs-4 text-danger px-3 py-1 bg-danger bg-opacity-10 border border-danger rounded shadow-sm" id="timer_display" style="font-variant-numeric: tabular-nums;">--:--</div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 mb-3 text-muted small fw-medium">
+                            <div class="d-flex align-items-center"><span class="badge border border-secondary text-secondary me-1" style="width:14px;height:14px;"> </span> Not Attempted</div>
+                            <div class="d-flex align-items-center"><span class="badge bg-success me-1" style="width:14px;height:14px;"> </span> Attempted</div>
+                            <div class="d-flex align-items-center"><span class="badge bg-warning text-body-emphasis me-1" style="width:14px;height:14px;"> </span> Bookmarked</div>
+                        </div>
+                        <hr class="m-0 border-secondary opacity-25">
+                    </div>
+                    <div class="card-body p-4 pt-3">
+                        <div class="d-flex flex-wrap gap-2 mb-4" id="palette-grid">
+                            {% for q in questions %}
+                            <button type="button" class="btn btn-outline-secondary palette-btn rounded-circle fw-bold d-flex justify-content-center align-items-center p-0 m-0" 
+                                    style="width: 45px; height: 45px; transition: all 0.2s; border-width: 2px;" data-qindex="{{ loop.index }}" id="palette-btn-{{ loop.index }}">
+                                {{ loop.index }}
+                            </button>
+                            {% endfor %}
+                        </div>
+
+                        <div class="text-center mt-2">
+                            <button type="submit" class="btn btn-primary-custom btn-lg w-100 shadow border-2">🚀 Submit Exam</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div id="video-container" style="display:none;">
+    <video id="video" autoplay playsinline></video>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import { FaceDetector, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
+
+    const startBtn = document.getElementById('startBtn');
+    const overlay = document.getElementById('overlay');
+    const examContent = document.getElementById('exam_content');
+    const video = document.getElementById('video');
+    const videoContainer = document.getElementById('video-container');
+
+    let faceDetector;
+    let runningMode = "VIDEO";
+    let lastVideoTime = -1;
+    let warningCount = 0;
+    const MAX_WARNINGS = 5;
+
+    // AI Initialization
+    async function initializeVision() {
+        try {
+            const vision = await FilesetResolver.forVisionTasks(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+            );
+            faceDetector = await FaceDetector.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite`,
+                    delegate: "GPU"
+                },
+                runningMode: runningMode
+            });
+            console.log("MediaPipe Model Loaded Successfully");
+        } catch (e) {
+            console.error("Failed to load Face Detector", e);
+        }
+    }
+
+    initializeVision();
+
+    // Log flags to server
+    async function logCheat(description) {
+        warningCount++;
+        alert(`WARNING ${warningCount}/${MAX_WARNINGS}: ${description}`);
+        
+        await fetch('/student/api/cheat_flag', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ exam_id: {{ exam.id }}, description: description })
+        });
+
+        if (warningCount >= MAX_WARNINGS) {
+            alert('Maximum warnings reached. Exam auto-submitting...');
+            document.getElementById('exam_form').submit();
+        }
+    }
+
+    // MediaPipe prediction loop
+    async function predictWebcam() {
+        if (!faceDetector) {
+            window.requestAnimationFrame(predictWebcam);
+            return;
+        }
+        
+        if (video.videoWidth > 0 && video.currentTime !== lastVideoTime) {
+            lastVideoTime = video.currentTime;
+            try {
+                const detections = faceDetector.detectForVideo(video, performance.now()).detections;
+                
+                // Debouncing counters
+                if (detections.length === 0) {
+                    if (!window.noFaceTimer) {
+                        window.noFaceTimer = setTimeout(() => {
+                            logCheat("No face detected in webcam.");
+                            window.noFaceTimer = null;
+                        }, 3000); 
+                    }
+                } else if (detections.length > 1) {
+                    if (!window.multipleFacesTimer) {
+                        window.multipleFacesTimer = setTimeout(() => {
+                            logCheat("Multiple faces detected in frame.");
+                            window.multipleFacesTimer = null;
+                        }, 2000);
+                    }
+                } else {
+                    clearTimeout(window.noFaceTimer);
+                    window.noFaceTimer = null;
+                    clearTimeout(window.multipleFacesTimer);
+                    window.multipleFacesTimer = null;
+                }
+            } catch(e) { /* Ignore dropped frames */ }
+        }
+        window.requestAnimationFrame(predictWebcam);
+    }
+
+    // Start Exam Process
+    startBtn.addEventListener('click', async () => {
+        try {
+            await document.documentElement.requestFullscreen();
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            video.srcObject = stream;
+            
+            video.addEventListener("loadeddata", predictWebcam);
+            
+            overlay.style.display = 'none';
+            examContent.classList.remove('blurred');
+            videoContainer.style.display = 'block';
+            
+            startTimer(); 
+        } catch (err) {
+            alert("Please allow Camera and Fullscreen to start the exam.");
+            console.error(err);
+        }
+    });
+
+    // Constraints & Listeners
+    document.addEventListener("visibilitychange", function() {
+        if (document.hidden && overlay.style.display === 'none') {
+            logCheat("Tab switched or window minimized.");
+        }
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement && overlay.style.display === 'none') {
+            logCheat("Exited fullscreen mode.");
+            examContent.classList.add('blurred');
+            alert('Return to fullscreen immediately (F11) or face penalties.');
+            setTimeout(() => { if (!document.fullscreenElement) { logCheat("Failed to return to fullscreen"); } }, 5000);
+            examContent.classList.remove('blurred');
+        }
+    });
+
+    // Prevent Copy/Paste & Context Menu
+    document.oncontextmenu = e => e.preventDefault();
+    document.onpaste = e => e.preventDefault();
+    document.oncopy = e => e.preventDefault();
+    document.oncut = e => e.preventDefault();
+    
+    // Disable devtools shortcuts
+    document.onkeydown = function (e) {
+        if(e.keyCode == 123) { return false; } // F12
+        if(e.ctrlKey && e.shiftKey && e.keyCode == 73) { return false; } // Ctrl+Shift+I
+        if(e.ctrlKey && e.shiftKey && e.keyCode == 74) { return false; } // Ctrl+Shift+J
+        if(e.ctrlKey && e.keyCode == 85) { return false; } // Ctrl+U
+    };
+
+    // --- Navigator Palette UI Script ---
+    const paletteBtns = document.querySelectorAll('.palette-btn');
+    const bookmarkBtns = document.querySelectorAll('.bookmark-btn');
+    const optionRadios = document.querySelectorAll('.q-option');
+
+    // Smooth Scroll to Card
+    paletteBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const index = btn.getAttribute('data-qindex');
+            const targetCard = document.getElementById(`qcard-${index}`);
+            if(targetCard) {
+                targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    });
+
+    // Update Palette State upon Selection
+    optionRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            const index = radio.getAttribute('data-qindex');
+            const pBtn = document.getElementById(`palette-btn-${index}`);
+            if(pBtn) {
+                pBtn.classList.remove('btn-outline-secondary');
+                // Don't overwrite orange if it's bookmarked currently
+                if (!pBtn.classList.contains('btn-warning')) {
+                    pBtn.classList.add('btn-success', 'text-white', 'border-success');
+                }
+            }
+        });
+    });
+
+    // Bookmark Toggling
+    bookmarkBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const index = btn.getAttribute('data-qindex');
+            const pBtn = document.getElementById(`palette-btn-${index}`);
+            const isBookmarked = btn.classList.contains('active');
+            
+            if (!isBookmarked) {
+                // Add Bookmark Indicator
+                btn.classList.add('active', 'btn-warning', 'text-body-emphasis');
+                btn.classList.remove('btn-outline-warning');
+                btn.innerHTML = '🎯 Bookmarked';
+                
+                pBtn.classList.remove('btn-outline-secondary', 'btn-success', 'border-success');
+                pBtn.classList.add('btn-warning', 'text-body-emphasis', 'border-warning');
+            } else {
+                // Remove Bookmark Indicator
+                btn.classList.remove('active', 'btn-warning', 'text-body-emphasis');
+                btn.classList.add('btn-outline-warning');
+                btn.innerHTML = '📌 Bookmark';
+                
+                pBtn.classList.remove('btn-warning', 'text-body-emphasis', 'border-warning');
+                
+                // Re-evaluate Attempted status
+                const isAnswered = document.querySelector(`.q-option[data-qindex="${index}"]:checked`);
+                if (isAnswered) {
+                    pBtn.classList.add('btn-success', 'text-white', 'border-success');
+                } else {
+                    pBtn.classList.add('btn-outline-secondary');
+                }
+            }
+        });
+    });
+    // --- End Navigator Palette ---
+
+    // Timer Logic
+    const endTime = new Date("{{ exam.end_time.isoformat() }}");
+    function startTimer() {
+        function updateTimer() {
+            const now = new Date();
+            const diff = endTime - now;
+            
+            if (diff <= 0) {
+                document.getElementById('timer_display').innerText = "00:00";
+                document.getElementById('timer_display').style.color = "red";
+                if(warningCount < MAX_WARNINGS) {
+                    document.getElementById('exam_form').submit(); 
+                }
+                return;
+            }
+
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            document.getElementById('timer_display').innerText = 
+                String(minutes).padStart(2, '0') + ":" + String(seconds).padStart(2, '0');
+                
+            if (minutes < 5) {
+                document.getElementById('timer_display').style.background = "#fca5a5";
+                document.getElementById('timer_display').style.color = "#7f1d1d";
+            }
+        }
+        setInterval(updateTimer, 1000);
+        updateTimer();
+    }
+</script>
+{% endblock %}

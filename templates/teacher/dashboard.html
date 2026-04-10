@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card glass-card border-0 shadow-sm mb-5 position-relative overflow-hidden" style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%);">
+    <div class="position-absolute align-items-center justify-content-center d-none d-lg-flex" style="right: -5%; top: 50%; transform: translateY(-50%); font-size: 15rem; opacity: 0.05; user-select: none; z-index: 0;">
+        📝
+    </div>
+    <div class="card-body p-md-5 p-4 position-relative z-1">
+        <div class="row text-center text-lg-start align-items-center">
+            <div class="col-lg-8 mb-4 mb-lg-0">
+                <span class="badge bg-primary text-white rounded-pill px-3 py-2 mb-3 fw-medium">Instructor Gateway</span>
+                <h1 class="fw-bold mb-3 text-body-emphasis display-6" style="letter-spacing: -0.5px;">Empower Your Classrooms</h1>
+                <p class="text-muted fs-5 mb-0" style="max-width: 600px;">
+                    Smart proctoring and comprehensive analytics at your fingertips. Design interactive, cheat-proof exams and manage student cohorts flawlessly in seconds.
+                </p>
+            </div>
+            <div class="col-lg-4 d-flex justify-content-lg-end justify-content-center">
+                <a href="/teacher/exam-editor" class="btn btn-primary-custom btn-lg shadow fw-bold d-flex align-items-center justify-content-center" style="border-radius: 14px; padding: 1.25rem 2rem; font-size: 1.15rem; transition: transform 0.2s ease-in-out;">
+                    <span class="fs-4 me-2">✨</span> Create New Exam
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stat Cards -->
+<div class="row mb-5">
+    <div class="col-md-3 mb-3">
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-bottom: 4px solid #4f46e5 !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.85rem; letter-spacing: 0.5px;">Total Exams Created</h6>
+            <h2 class="fw-bold mb-0" style="color: #4f46e5 !important;">{{ total_exams }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-bottom: 4px solid #10b981 !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.85rem; letter-spacing: 0.5px;">Total Students</h6>
+            <h2 class="fw-bold mb-0" style="color: #10b981 !important;">{{ total_students }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-bottom: 4px solid #f59e0b !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.85rem; letter-spacing: 0.5px;">Active Exams</h6>
+            <h2 class="fw-bold mb-0 text-warning" style="color: #f59e0b !important;">{{ active_count }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-bottom: 4px solid #ef4444 !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.85rem; letter-spacing: 0.5px;">Global Average Score</h6>
+            <h2 class="fw-bold mb-0 text-danger" style="color: #ef4444 !important;">{{ avg_score }}%</h2>
+        </div>
+    </div>
+</div>
+
+{% if active_exams_data and active_exams_data|length > 0 %}
+<!-- Live Monitoring Center -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="d-flex align-items-center mb-3">
+            <h5 class="fw-bold mb-0 text-body-emphasis">Live Monitoring Center</h5>
+            <span class="badge bg-danger rounded-pill ms-3 pulse-badge shadow-sm">🔴 {{ active_exams_data|length }} ONLINE</span>
+        </div>
+        
+        <div class="row g-3">
+            {% for item in active_exams_data %}
+            <div class="col-lg-6">
+                <div class="card glass-card border border-danger border-opacity-25 shadow-sm h-100" style="background: linear-gradient(to right, rgba(239, 68, 68, 0.05), transparent);">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start mb-4">
+                            <div>
+                                <h5 class="fw-bold text-danger mb-1">{{ item.exam.title }}</h5>
+                                <p class="text-muted small mb-0 fw-medium">Group ID: {{ item.exam.group_id }} &bull; Ends at {{ item.exam.end_time.strftime('%I:%M %p') }}</p>
+                            </div>
+                            <span class="badge bg-danger text-white fw-bold shadow-sm" style="font-size: 0.75rem;"><i class="bi bi-broadcast"></i> BROADCASTING</span>
+                        </div>
+                        <div class="row text-center mb-4">
+                            <div class="col-6 border-end border-secondary border-opacity-25">
+                                <h2 class="fw-bold mb-0" style="color: var(--text-color);">{{ item.assigned_count }}</h2>
+                                <small class="text-muted text-uppercase fw-bold" style="font-size: 0.70rem; letter-spacing: 0.5px;">Target Students</small>
+                            </div>
+                            <div class="col-6">
+                                <h2 class="fw-bold mb-0 {% if item.violation_count > 0 %}text-danger{% else %}text-success{% endif %}">{{ item.violation_count }}</h2>
+                                <small class="text-muted text-uppercase fw-bold" style="font-size: 0.70rem; letter-spacing: 0.5px;">Total Flags Captured</small>
+                            </div>
+                        </div>
+                        <a href="/teacher/exam/{{ item.exam.id }}/monitor" class="btn btn-danger w-100 fw-bold shadow border-2 border-danger" onclick="alert('Accessing Live Sub-Network Feed Engine...'); return false;" style="transition: transform 0.2s;">
+                            📡 Connect to Live Feed
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Analytics Section -->
+<div class="row mb-5">
+    <div class="col-lg-8 mb-4 mb-lg-0">
+        <div class="card glass-card h-100 border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-4">Exam Performance Trajectory</h5>
+                <div style="height: 300px;">
+                    <canvas id="examTrajectoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 mb-4 mb-lg-0">
+        <div class="card glass-card h-100 border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-4">Global Pass/Fail Ratio</h5>
+                <div style="height: 300px; display: flex; justify-content: center; align-items: center;">
+                    <canvas id="passFailChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Student Insights Section -->
+{% if top_performers and top_performers|length > 0 %}
+<div class="row mb-5">
+    <div class="col-lg-6 mb-4 mb-lg-0">
+        <div class="card glass-card h-100 border-0 shadow-sm" style="border-top: 4px solid #10b981 !important;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-4">
+                    <span class="fs-3 me-3">🏆</span>
+                    <h5 class="fw-bold mb-0">Top Performing Students</h5>
+                </div>
+                <div class="d-flex flex-column gap-3">
+                    {% for student in top_performers %}
+                    <div class="d-flex justify-content-between align-items-center p-3 bg-success bg-opacity-10 rounded-3">
+                        <div class="d-flex align-items-center">
+                            <span class="bg-success text-white fw-bold shadow-sm rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 35px; height: 35px;">{{ loop.index }}</span>
+                            <h6 class="fw-bold mb-0 text-body-emphasis">{{ student.name }}</h6>
+                        </div>
+                        <span class="badge bg-success shadow-sm px-3 py-2 fs-6">{{ student.avg }}%</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card glass-card h-100 border-0 shadow-sm" style="border-top: 4px solid #ef4444 !important;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-4">
+                    <span class="fs-3 me-3">⚠️</span>
+                    <h5 class="fw-bold mb-0">Students Needing Attention</h5>
+                </div>
+                <div class="d-flex flex-column gap-3">
+                    {% for student in low_scorers %}
+                    <div class="d-flex justify-content-between align-items-center p-3 bg-danger bg-opacity-10 rounded-3">
+                        <div class="d-flex align-items-center">
+                            <span class="bg-danger text-white fw-bold shadow-sm rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 35px; height: 35px;">!</span>
+                            <h6 class="fw-bold mb-0 text-body-emphasis">{{ student.name }}</h6>
+                        </div>
+                        <span class="badge bg-danger shadow-sm px-3 py-2 fs-6">{{ student.avg }}%</span>
+                    </div>
+                    {% else %}
+                    <div class="text-center p-4">
+                        <span class="fs-1 opacity-50 d-block mb-3">🎓</span>
+                        <p class="text-muted fw-medium mb-0">Excellent! No low scoring students detected.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- Groups Section -->
+    <div class="col-lg-4 mb-4">
+        <div class="card glass-card h-100 border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">Your Groups</h5>
+                </div>
+                
+                <div class="d-flex flex-column gap-3 mb-4 pe-2" style="max-height: 400px; overflow-y: auto;">
+                    {% for group in groups %}
+                    <div class="card bg-transparent border border-secondary border-opacity-25 rounded-3 hover-shadow-sm" style="transition: all 0.2s ease;">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h6 class="fw-bold mb-0 text-primary" style="color: var(--primary-color) !important;">{{ group.name }}</h6>
+                                <span class="badge bg-body-tertiary text-body-emphasis border shadow-sm px-2 py-1">👥 {{ group.student_count }}</span>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="/teacher/group/{{ group.id }}" class="btn btn-sm btn-outline-primary fw-medium border-2" style="width:33%;">👤 View</a>
+                                <a href="/teacher/exam-editor?group={{ group.id }}" class="btn btn-sm btn-primary-custom fw-medium border-2" style="width:33%;">📝 Assign</a>
+                                <button class="btn btn-sm btn-outline-danger fw-medium border-2" style="width:33%;" onclick="confirmDelete('group', {{ group.id }}, '{{ group.name }}')">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center p-4">
+                        <span class="fs-1 opacity-50 d-block mb-3">📂</span>
+                        <p class="text-muted fw-medium mb-0">No groups created yet.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <button type="button" class="btn btn-primary-custom w-100 py-2 fw-bold shadow-sm d-flex justify-content-center align-items-center mt-2" data-bs-toggle="modal" data-bs-target="#createGroupModal" style="border-radius: 10px; transition: transform 0.2s;">
+                    <span class="fs-5 me-2">+</span> Create New Cohort
+                </button>
+            </div>
+        </div>
+
+        <!-- Action Alerts & Notifications Section -->
+        <div class="card glass-card h-100 border-0 shadow-sm mt-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">Action Alerts</h5>
+                </div>
+                <div class="d-flex flex-column gap-3">
+                    {% for alert in recent_alerts %}
+                    <div class="d-flex align-items-start border-start border-3 ps-3 border-{% if alert.bg_color == 'bg-danger' %}danger{% else %}primary{% endif %} position-relative py-1">
+                        <div class="flex-grow-1">
+                            <p class="mb-1 fw-bold text-body-emphasis" style="font-size: 0.90rem; line-height: 1.4;">
+                                {% if alert.bg_color == 'bg-danger' %}<span class="text-danger me-1">⚠️</span>{% else %}<span class="text-primary me-1">📅</span>{% endif %}
+                                {{ alert.message }}
+                            </p>
+                            <small class="text-muted fw-bold text-uppercase" style="font-size: 0.70rem; letter-spacing: 0.5px;">{{ alert.time }}</small>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center p-4 rounded-3 border border-secondary border-opacity-10 bg-body-tertiary bg-opacity-50">
+                        <span class="fs-1 d-block mb-2 opacity-50">📭</span>
+                        <small class="fw-bold text-muted">No active security alerts or upcoming schedules.</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exams Section -->
+    <div class="col-lg-8 mb-4">
+        <div class="card glass-card h-100 border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">Exam Repository</h5>
+                    <a href="/teacher/exam-editor" class="btn btn-sm btn-primary-custom fw-bold rounded-pill px-3 py-2 border-0 shadow-sm"><span class="me-1">✍️</span> Draft Exam</a>
+                </div>
+                
+                <div class="d-flex flex-column gap-3 mb-2" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
+                    {% for exam in exams %}
+                    <div class="card bg-transparent border border-secondary border-opacity-25 rounded-3 hover-shadow-sm" style="transition: all 0.2s ease;">
+                        <div class="card-body p-3">
+                            <div class="row align-items-center">
+                                <div class="col-md-5 mb-2 mb-md-0">
+                                    <h6 class="fw-bold mb-1">
+                                        <a href="/teacher/exam/{{ exam.id }}/submissions" class="text-decoration-none" style="color: var(--text-color);">{{ exam.title }}</a>
+                                    </h6>
+                                    <p class="text-muted small mb-0 fw-medium">Grp ID: {{ exam.group_id }} &bull; {{ exam.duration_minutes }} min filter</p>
+                                </div>
+                                <div class="col-md-4 mb-3 mb-md-0 d-flex flex-column justify-content-center">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <small class="text-muted fw-bold me-2">🕒 {{ exam.start_time.strftime('%b %d, %I:%M %p') }}</small>
+                                    </div>
+                                    <div class="mt-1">
+                                        {% if now < exam.start_time %}
+                                        <span class="badge px-3 py-2" style="background-color: var(--surface-color); color: var(--text-color); border: 1px dashed var(--border-color);">⏳ Scheduled</span>
+                                        {% elif now > exam.end_time %}
+                                        <span class="badge bg-success bg-opacity-25 text-success border border-success px-3 py-2 fw-bold">✅ Completed</span>
+                                        {% else %}
+                                        <span class="badge bg-danger text-white border border-danger px-3 py-2 fw-bold pulse-badge shadow-sm">🔴 LIVE NOW</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-3 text-md-end">
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-secondary border-opacity-50 shadow-sm rounded-pill btn-sm dropdown-toggle fw-bold px-3 py-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="color: var(--text-color);">
+                                            Manage
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-2" style="border-radius: 12px; overflow: hidden; background-color: var(--surface-color);">
+                                            {% if now >= exam.start_time and now <= exam.end_time %}
+                                                <li><a class="dropdown-item fw-bold text-danger py-2" href="#" onclick="alert('Live Proctoring Feed Engine Commencing!'); return false;">📡 Monitor Live</a></li>
+                                            {% endif %}
+                                            <li><a class="dropdown-item fw-bold text-primary py-2" href="/teacher/exam/{{ exam.id }}/submissions">📊 View Results</a></li>
+                                            <li><hr class="dropdown-divider m-0 border-secondary opacity-25"></li>
+                                            <li><a class="dropdown-item fw-medium py-2" style="color: var(--text-color);" href="/teacher/exam/{{ exam.id }}/settings">⚙️ Edit Settings</a></li>
+                                            <li><a class="dropdown-item fw-medium text-danger py-2" href="#" onclick="confirmDelete('exam', {{ exam.id }}, '{{ exam.title }}')">🗑️ Delete Exam</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center p-5 border border-secondary border-opacity-25 rounded-3" style="background-color: var(--surface-color); border-style: dashed !important;">
+                        <span class="fs-1 opacity-50 d-block mb-3">📄</span>
+                        <h6 class="fw-bold" style="color: var(--text-color);">No exams scheduled yet</h6>
+                        <p class="text-muted small mb-0">Design an interactive exam to start assessing your students.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
+  <div id="cheatToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body fw-medium" id="toastMessage">
+        Alert!
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Group Modal -->
+<div class="modal fade" id="createGroupModal" tabindex="-1" aria-labelledby="createGroupModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content glass-card border-0 shadow-lg" style="border-radius: 16px;">
+      <div class="modal-header border-bottom border-secondary border-opacity-10 py-3">
+        <h5 class="modal-title fw-bold" id="createGroupModalLabel" style="color: var(--text-color);">Create New Group</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="/teacher/create_group">
+          <div class="modal-body p-4">
+            <div class="mb-3">
+                <label for="groupName" class="form-label fw-bold text-muted">Group/Cohort Name <span class="text-danger">*</span></label>
+                <input type="text" id="groupName" name="name" class="form-control form-control-lg bg-body-tertiary border-secondary border-opacity-25 shadow-none" placeholder="e.g. Applied Physics 2nd Year" minlength="3" maxlength="100" required autocomplete="off" autofocus>
+                <div class="form-text mt-2 opacity-75">Use a descriptive name. Students will be mapped under this group for exam distributions.</div>
+            </div>
+          </div>
+          <div class="modal-footer border-top border-secondary border-opacity-10">
+            <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal" style="background: var(--surface-color); color: var(--text-color); border: 1px solid var(--border-color);">Cancel</button>
+            <button type="submit" class="btn btn-primary-custom px-4 fw-bold shadow-sm">🚀 Deploy Group</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content glass-card border-0 shadow-lg" style="border-radius: 16px;">
+      <div class="modal-header border-bottom border-secondary border-opacity-10 py-3">
+        <h5 class="modal-title fw-bold text-danger">⚠️ Confirm Deletion</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="text-muted fw-medium mb-1">You are about to permanently delete:</p>
+        <p class="fw-bold fs-5 text-danger mb-3" id="deleteTargetName"></p>
+        <div class="p-3 rounded-3 bg-danger bg-opacity-10 border border-danger border-opacity-25">
+          <small class="text-danger fw-bold">⚠️ This action cannot be undone. All associated data (submissions, questions, members) will be permanently erased.</small>
+        </div>
+      </div>
+      <div class="modal-footer border-top border-secondary border-opacity-10">
+        <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Cancel</button>
+        <form id="deleteForm" method="POST" action="#" style="margin:0;">
+          <button type="submit" class="btn btn-danger fw-bold px-4 shadow-sm">🗑️ Yes, Delete Permanently</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Live Alerts WebSocket
+    const wsUrl = `ws://${window.location.host}/ws/teacher/{{ user.id }}`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        const alertMsg = `⚠️ ${data.student_name} triggered a violation in '${data.exam_title}': ${data.description}`;
+        
+        document.getElementById('toastMessage').innerText = alertMsg;
+        const toastEl = document.getElementById('cheatToast');
+        const toast = new bootstrap.Toast(toastEl, { delay: 15000 });
+        toast.show();
+    };
+
+    ws.onclose = function(event) {
+        console.warn("WebSocket Connection Closed");
+    };
+
+    // Analytics Chart.js Scripts
+    document.addEventListener("DOMContentLoaded", function() {
+        const examLabels = {{ exam_labels | tojson }};
+        const examAverages = {{ exam_averages | tojson }};
+        const passCount = {{ pass_count }};
+        const failCount = {{ fail_count }};
+
+        const trajCtx = document.getElementById('examTrajectoryChart');
+        if (trajCtx && examLabels.length > 0) {
+            new Chart(trajCtx, {
+                type: 'line',
+                data: {
+                    labels: examLabels,
+                    datasets: [{
+                        label: 'Average Score (%)',
+                        data: examAverages,
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#4f46e5',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        y: { beginAtZero: true, max: 100, grid: { color: 'rgba(0,0,0,0.05)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        const pfCtx = document.getElementById('passFailChart');
+        if (pfCtx && (passCount > 0 || failCount > 0)) {
+            new Chart(pfCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Passed (>=50%)', 'Failed (<50%)'],
+                    datasets: [{
+                        data: [passCount, failCount],
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { padding: 20, font: { family: "'Inter', sans-serif", weight: '500' } } }
+                    }
+                }
+            });
+        } else if (pfCtx) {
+            pfCtx.parentElement.innerHTML = '<p class="text-muted text-center w-100">Not enough submission data to visualize.</p>';
+        }
+    });
+    // Delete Confirmation Handler
+    function confirmDelete(type, id, name) {
+        const form = document.getElementById('deleteForm');
+        const label = document.getElementById('deleteTargetName');
+        
+        if (type === 'exam') {
+            form.action = `/teacher/exam/${id}/delete`;
+            label.textContent = `Exam: "${name}"`;
+        } else if (type === 'group') {
+            form.action = `/teacher/group/${id}/delete`;
+            label.textContent = `Group: "${name}" (+ all its exams & members)`;
+        }
+        
+        const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+        modal.show();
+    }
+</script>
+{% endblock %}

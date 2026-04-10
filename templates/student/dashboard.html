@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="fw-bold">Student Dashboard</h2>
+    <p class="text-muted">Welcome, {{ user.name }}! Here are your exams.</p>
+</div>
+
+<!-- Stat Cards -->
+<div class="row mb-5">
+    <div class="col-md-4 mb-3">
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-bottom: 4px solid #4f46e5 !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2">Exams Attempted</h6>
+            <h2 class="fw-bold mb-0 text-primary" style="color: #4f46e5 !important;">{{ total_attempted }}</h2>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-bottom: 4px solid #10b981 !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2">Average Score</h6>
+            <h2 class="fw-bold mb-0 text-success" style="color: #10b981 !important;">{{ avg_score }}%</h2>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-bottom: 4px solid #f59e0b !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2">Upcoming Exams</h6>
+            <h2 class="fw-bold mb-0 text-warning" style="color: #f59e0b !important;">{{ upcoming_count }}</h2>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+
+    <!-- System Proctoring Status -->
+    <div class="col-md-12 mb-4">
+        <h4 class="fw-bold mb-3">System Readiness</h4>
+        <div class="card glass-card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="row text-center">
+                    <div class="col-md-4 mb-3 mb-md-0 position-relative">
+                        <div class="mb-2"><span style="font-size: 2rem;">📸</span></div>
+                        <h6 class="fw-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">Camera Status</h6>
+                        <span class="badge bg-success rounded-pill px-3 py-2 fw-medium"><span class="spinner-grow spinner-grow-sm me-1" role="status" style="width: 0.5rem; height: 0.5rem;"></span> Available</span>
+                        <div class="position-absolute top-50 end-0 translate-middle-y d-none d-md-block" style="border-right: 1px solid rgba(128,128,128,0.2); height: 50%;"></div>
+                    </div>
+                    <div class="col-md-4 mb-3 mb-md-0 position-relative">
+                        <div class="mb-2"><span style="font-size: 2rem;">🤖</span></div>
+                        <h6 class="fw-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">AI Detection</h6>
+                        <span class="badge bg-primary rounded-pill px-3 py-2 fw-medium">Active (Multi-person)</span>
+                        <div class="position-absolute top-50 end-0 translate-middle-y d-none d-md-block" style="border-right: 1px solid rgba(128,128,128,0.2); height: 50%;"></div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-2"><span style="font-size: 2rem;">⚠️</span></div>
+                        <h6 class="fw-bold text-muted mb-2 text-uppercase" style="letter-spacing: 1px;">Integrity Violations</h6>
+                        <span class="badge {{ 'bg-danger' if violations_count > 0 else 'bg-success' }} rounded-pill px-3 py-2 fw-medium text-white">{{ violations_count }} Recorded</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Analytics -->
+    <div class="col-md-12 mb-4">
+        <h4 class="fw-bold mb-3">Performance Analytics</h4>
+        <div class="row">
+            <div class="col-lg-7 mb-3 mb-lg-0">
+                <div class="card glass-card h-100 border-0 shadow-sm p-4">
+                    <h6 class="fw-bold text-muted text-uppercase mb-3" style="letter-spacing: 0.5px;">Score Trajectory</h6>
+                    <div style="height: 300px; width: 100%;">
+                        <canvas id="lineChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="card glass-card h-100 border-0 shadow-sm p-4">
+                    <h6 class="fw-bold text-muted text-uppercase mb-3" style="letter-spacing: 0.5px;">Subject-wise Average</h6>
+                    <div style="height: 300px; width: 100%; display: flex; justify-content: center;">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Exams -->
+    <div class="col-md-12 mb-4">
+        <h4 class="fw-bold text-success mb-3">Currently Active</h4>
+        <div class="row">
+            {% for exam in active_exams %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card glass-card h-100 border-success">
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold text-success">{{ exam.title }}</h5>
+                        <p class="mb-1 text-muted small">Duration: {{ exam.duration_minutes }} min</p>
+                        <p class="mb-3 text-muted small">Ends: {{ exam.end_time.strftime('%H:%M %d %b') }}</p>
+                        <a href="/student/take_exam/{{ exam.id }}" class="btn btn-success w-100 fw-bold">Start Now &rarr;</a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12">
+                <div class="card glass-card border-0 shadow-sm text-center p-5">
+                    <div class="mb-3">
+                        <span style="font-size: 3rem;">📝</span>
+                    </div>
+                    <h5 class="fw-bold text-muted mb-2">No Active Exams Right Now</h5>
+                    <p class="text-muted small mb-4">You're all caught up! Wait for your teacher to schedule an exam or practice your skills.</p>
+                    <div>
+                        <button class="btn btn-outline-primary fw-medium me-2" onclick="alert('Join via Code: Feature coming soon!')">Join Exam via Code</button>
+                        <button class="btn btn-primary-custom fw-medium" onclick="alert('Practice Test: Feature coming soon!')">Start Practice Test</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Upcoming Exams -->
+    <div class="col-md-12 mb-4">
+        <hr class="mb-4">
+        <h4 class="fw-bold mb-3">Upcoming Exams</h4>
+        <div class="row">
+            {% for exam in upcoming_exams %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card glass-card h-100 border-0 shadow-sm position-relative overflow-hidden">
+                    <div class="position-absolute top-0 start-0 w-100 bg-warning" style="height: 4px;"></div>
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title fw-bold text-primary mb-0" style="color: var(--primary-color) !important;">{{ exam.title }}</h5>
+                            <span class="badge bg-warning text-body-emphasis rounded-pill fw-bold">Upcoming</span>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="d-flex align-items-center mb-2 text-muted">
+                                <span class="me-2" style="font-size: 1.1rem;">📅</span> 
+                                <span class="small fw-medium">{{ exam.start_time.strftime('%A, %b %d') }}</span>
+                            </div>
+                            <div class="d-flex align-items-center mb-2 text-muted">
+                                <span class="me-2" style="font-size: 1.1rem;">⏰</span> 
+                                <span class="small fw-medium">{{ exam.start_time.strftime('%I:%M %p') }}</span>
+                            </div>
+                            <div class="d-flex align-items-center text-muted">
+                                <span class="me-2" style="font-size: 1.1rem;">⏳</span> 
+                                <span class="small fw-medium">{{ exam.duration_minutes }} Mins Duration</span>
+                            </div>
+                            
+                            <div class="p-2 border border-warning border-opacity-25 rounded bg-warning bg-opacity-10 text-center mt-3 shadow-sm">
+                                <div class="text-warning text-uppercase fw-bold mb-1" style="letter-spacing: 1.5px; font-size: 0.65rem;">Starts In</div>
+                                <div class="countdown-timer fw-bold text-body-emphasis fs-5" style="font-variant-numeric: tabular-nums;" data-start="{{ exam.start_time.isoformat() }}">
+                                    Fetching...
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-outline-warning w-100 fw-bold text-body-emphasis border-2" style="background-color: rgba(245, 158, 11, 0.1);" onclick="alert('This exam has not started yet. Please wait until {{ exam.start_time.strftime('%I:%M %p on %b %d') }}.')">
+                            🔒 Start Exam
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12">
+                <div class="card glass-card border-0 shadow-sm text-center p-5" style="background-color: rgba(0,0,0,0.02);">
+                    <div class="mb-3">
+                        <span style="font-size: 3.5rem; opacity: 0.9;">📅</span>
+                    </div>
+                    <h5 class="fw-bold text-muted mb-2">Schedule is Clear</h5>
+                    <p class="text-muted small mb-4">You have no upcoming tests scheduled. Keep reviewing your notes or ask your teacher to assign a new exam.</p>
+                    <div>
+                        <button class="btn btn-outline-secondary fw-medium px-4 py-2" onclick="alert('Contact Feature coming soon!')">✉️ Contact Teacher</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Completed/Missed Exams -->
+    <div class="col-md-12 mb-4">
+        <hr class="mb-4">
+        <h4 class="fw-bold mb-3">Past Exams</h4>
+        <div class="row">
+            {% for item in past_exams %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card glass-card h-100 border-0 shadow-sm position-relative overflow-hidden">
+                    {% if item.score == "Missed" %}
+                    <div class="position-absolute top-0 start-0 w-100 bg-danger" style="height: 4px;"></div>
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title fw-bold text-body-emphasis mb-0">{{ item.exam.title }}</h5>
+                            <span class="badge bg-danger text-white rounded-pill fw-bold">Missed</span>
+                        </div>
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="small fw-bold text-danger">0%</span>
+                                <span class="small text-muted">0 / 100</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-danger" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-danger w-100 fw-bold border-2" onclick="alert('You missed this exam. No analysis available.')">
+                            🚫 Missed
+                        </button>
+                    </div>
+                    {% else %}
+                    {% set score_color = 'success' if item.score >= 80 else ('warning' if item.score >= 50 else 'danger') %}
+                    <div class="position-absolute top-0 start-0 w-100 bg-{{ score_color }}" style="height: 4px;"></div>
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title fw-bold text-primary mb-0" style="color: var(--primary-color) !important;">{{ item.exam.title }}</h5>
+                            <span class="badge bg-{{ score_color }} {{ 'text-body-emphasis' if score_color == 'warning' else 'text-white' }} rounded-pill fw-bold">{{ item.score | round(2) }}% Score</span>
+                        </div>
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="small fw-bold text-{{ score_color }}">Scale</span>
+                                <span class="small text-muted">100%</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-{{ score_color }}" role="progressbar" style="width: {{ item.score }}%;" aria-valuenow="{{ item.score }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                        <a href="/student/analysis/{{ item.exam.id }}" class="btn btn-outline-primary w-100 fw-bold border-2 d-block text-center mt-3 text-decoration-none">
+                            📊 View Analysis
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12">
+                <div class="card glass-card border-0 shadow-sm text-center p-5" style="background-color: rgba(0,0,0,0.02);">
+                    <div class="mb-3">
+                        <span style="font-size: 3.5rem; opacity: 0.9;">📭</span>
+                    </div>
+                    <h5 class="fw-bold text-muted mb-2">No History Found</h5>
+                    <p class="text-muted small mb-4">You haven't completed any exams yet. Once you finish an active test, your detailed analytics and scores will appear here.</p>
+                    <div>
+                        <button class="btn btn-primary-custom fw-medium shadow-sm px-4 py-2" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">⬆️ Go to Active Exams</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Theme Colors
+    const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    const textColor = isDark ? '#e0e0e0' : '#495057';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+
+    // Data from Backend Context
+    const lineLabels = {{ line_labels | safe }};
+    const lineData = {{ line_data | safe }};
+    const pieLabels = {{ pie_labels | safe }};
+    const pieData = {{ pie_data | safe }};
+
+    // 1. Line Chart
+    const ctxLine = document.getElementById('lineChart');
+    if (ctxLine && lineLabels.length > 0) {
+        new Chart(ctxLine.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: lineLabels,
+                datasets: [{
+                    label: 'Score %',
+                    data: lineData,
+                    borderColor: '#4f46e5',
+                    backgroundColor: 'rgba(79, 70, 229, 0.2)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#4f46e5',
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, max: 100, ticks: { color: textColor }, grid: { color: gridColor } },
+                    x: { ticks: { color: textColor }, grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // 2. Pie Chart (Doughnut)
+    const ctxPie = document.getElementById('pieChart');
+    if (ctxPie && pieLabels.length > 0) {
+        new Chart(ctxPie.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: pieLabels,
+                datasets: [{
+                    data: pieData,
+                    backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: textColor, padding: 20, font: { family: 'Inter', weight: '500' } } }
+                },
+                cutout: '75%'
+            }
+        });
+    }
+
+    // 3. Live Countdown Timer Engine
+    function updateCountdowns() {
+        const timers = document.querySelectorAll('.countdown-timer');
+        const now = new Date().getTime();
+        
+        timers.forEach(timer => {
+            // Append 'Z' to safely force standard UTC parsing if server date is naive
+            // Or parse directly if it already contains timezone info. 
+            // In typical local DBs, naive datetime implies local time, so we parse it directly.
+            let timeStr = timer.getAttribute('data-start');
+            const startTime = new Date(timeStr).getTime();
+            const distance = startTime - now;
+            
+            if (distance < 0) {
+                timer.innerHTML = "✅ Started! Refresh Page";
+                timer.classList.remove('text-body-emphasis', 'text-warning');
+                timer.classList.add('text-success');
+                // Opt: Enable the start button automatically
+                return;
+            }
+            
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            
+            let display = "";
+            if (days > 0) display += `${days}D `;
+            display += `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            timer.innerHTML = display;
+        });
+    }
+    
+    updateCountdowns();
+    setInterval(updateCountdowns, 1000);
+</script>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="/teacher/dashboard" class="text-decoration-none">&larr; Back to Dashboard</a>
+</div>
+
+<div class="card glass-card mb-5">
+    <div class="card-body p-4">
+        <h3 class="fw-bold mb-4">Create New Exam</h3>
+        
+        <div class="row mb-3">
+            <div class="col-md-6 mb-3">
+                <label class="form-label fw-medium">Exam Title</label>
+                <input type="text" id="exam_title" class="form-control" placeholder="Midterm Exam">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label fw-medium">Group</label>
+                <select id="exam_group" class="form-select">
+                    {% for group in groups %}
+                    <option value="{{ group.id }}">{{ group.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-medium">Start Time</label>
+                <input type="datetime-local" id="start_time" class="form-control">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-medium">End Time</label>
+                <input type="datetime-local" id="end_time" class="form-control">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-medium">Duration (minutes)</label>
+                <input type="number" id="duration" class="form-control" value="60">
+            </div>
+        </div>
+
+        <hr class="mb-4">
+        <h4 class="fw-bold mb-3">Questions</h4>
+        
+        <div id="questions_container"></div>
+
+        <button type="button" class="btn btn-outline-primary mt-3 mb-4" onclick="addQuestion()">+ Add Question</button>
+
+        <hr>
+        <div class="text-end">
+            <button type="button" class="btn btn-primary-custom" onclick="submitExam()">Create Exam</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let questions = [];
+
+    function addQuestion() {
+        const qId = questions.length;
+        questions.push({ text: '', options: [ {text: '', correct: true}, {text: '', correct: false} ] });
+        renderQuestions();
+    }
+
+    function updateQuestion(qId, text) {
+        questions[qId].text = text;
+    }
+
+    function addOption(qId) {
+        questions[qId].options.push({ text: '', correct: false });
+        renderQuestions();
+    }
+
+    function updateOption(qId, oId, text) {
+        questions[qId].options[oId].text = text;
+    }
+
+    function setCorrectOption(qId, oId) {
+        questions[qId].options.forEach((opt, idx) => {
+            opt.correct = (idx === oId);
+        });
+        renderQuestions();
+    }
+
+    function renderQuestions() {
+        const container = document.getElementById('questions_container');
+        container.innerHTML = '';
+
+        questions.forEach((q, qId) => {
+            let html = `
+            <div class="card mb-4 border bg-transparent">
+                <div class="card-body">
+                    <h6 class="fw-bold">Question ${qId + 1}</h6>
+                    <input type="text" class="form-control mb-3" placeholder="Enter question text" value="${q.text}" oninput="updateQuestion(${qId}, this.value)">
+                    
+                    <div class="ps-3 border-start border-3 border-primary">
+            `;
+
+            q.options.forEach((opt, oId) => {
+                html += `
+                    <div class="input-group mb-2">
+                        <div class="input-group-text">
+                            <input class="form-check-input mt-0" type="radio" name="correct_q${qId}" onchange="setCorrectOption(${qId}, ${oId})" ${opt.correct ? 'checked' : ''}>
+                        </div>
+                        <input type="text" class="form-control" placeholder="Option text" value="${opt.text}" oninput="updateOption(${qId}, ${oId}, this.value)">
+                    </div>
+                `;
+            });
+
+            html += `
+                    <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="addOption(${qId})">+ Add Option</button>
+                    </div>
+                </div>
+            </div>
+            `;
+            container.innerHTML += html;
+        });
+    }
+
+    async function submitExam() {
+        const payload = {
+            title: document.getElementById('exam_title').value,
+            group_id: parseInt(document.getElementById('exam_group').value),
+            start_time: new Date(document.getElementById('start_time').value).toISOString(),
+            end_time: new Date(document.getElementById('end_time').value).toISOString(),
+            duration_minutes: parseInt(document.getElementById('duration').value),
+            questions: questions.map(q => ({
+                text: q.text,
+                options: q.options.map(o => ({
+                    text: o.text,
+                    is_correct: o.correct
+                }))
+            }))
+        };
+
+        const res = await fetch('/teacher/api/create_exam', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            window.location.href = '/teacher/dashboard';
+        } else {
+            alert('Error creating exam. Check inputs.');
+        }
+    }
+
+    // Initialize with one question
+    addQuestion();
+</script>
+{% endblock %}

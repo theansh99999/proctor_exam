@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5 mb-4">
+        <div class="card glass-card border-0 shadow-sm text-center p-5 rounded-4">
+            <div class="bg-primary text-white mx-auto d-flex justify-content-center align-items-center rounded-circle mb-4 shadow" style="width: 100px; height: 100px; font-size: 3rem; font-weight: bold;">
+                {{ user.name[0] | upper }}
+            </div>
+            <h2 class="fw-bold mb-1 text-body-emphasis">{{ user.name }}</h2>
+            <p class="text-muted d-block mb-3 fs-5">{{ user.email }}</p>
+            <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary px-3 py-2 fs-6 text-uppercase mb-2 shadow-sm" style="letter-spacing: 1px;">
+                {% if user.role == "teacher" %}🛡️ Instructor{% else %}🎓 Student{% endif %}
+            </span>
+            
+            <hr class="my-4 border-secondary opacity-25">
+            
+            <div class="row text-center mt-4 mb-4">
+                <div class="col-6 border-end border-secondary border-opacity-10">
+                    <p class="text-muted rounded-pill text-uppercase fw-bold mb-1" style="font-size: 0.75rem;">Account Level</p>
+                    <h5 class="fw-bold text-primary mb-0">{{ user.role|capitalize }}</h5>
+                </div>
+                <div class="col-6">
+                    <p class="text-muted rounded-pill text-uppercase fw-bold mb-1" style="font-size: 0.75rem;">Status</p>
+                    <h5 class="fw-bold text-success mb-0">Verified Active</h5>
+                </div>
+            </div>
+            
+            <div class="mt-4 pt-2">
+                <a href="/settings" class="btn btn-outline-primary px-4 fw-bold shadow-sm rounded-pill py-2 w-100 border-2" style="transition: all 0.2s ease;">⚙️ Manage Configuration</a>
+                <a href="{% if user.role == 'teacher' %}/teacher/dashboard{% else %}/student/dashboard{% endif %}" class="btn btn-light px-4 fw-bold shadow-sm rounded-pill py-2 w-100 border mt-3" style="transition: all 0.2s ease;">&larr; Return to Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

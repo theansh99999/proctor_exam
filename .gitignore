@@ -1,0 +1,5 @@
+__pycache__/
+routers/__pycache__/
+venv/
+.env
+future_txt
