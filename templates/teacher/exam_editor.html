@@ -39,6 +39,24 @@
             </div>
         </div>
 
+        <div class="row mb-4">
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-medium">Timer Mode</label>
+                <select id="timer_type" class="form-select" onchange="toggleTimerSettings()">
+                    <option value="overall">Overall Exam Timer</option>
+                    <option value="per_question">Per Question Timer</option>
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-medium">Default Marks <span class="text-muted small fw-normal">(for correct answer)</span></label>
+                <input type="number" step="0.5" id="default_marks" class="form-control" value="1" min="0">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-medium">Default Negative Marks</label>
+                <input type="number" step="0.1" id="default_negative_marks" class="form-control" value="0">
+            </div>
+        </div>
+
         <hr class="mb-4">
         <h4 class="fw-bold mb-3">Questions</h4>
         
@@ -60,8 +78,18 @@
 
     function addQuestion() {
         const qId = questions.length;
-        questions.push({ text: '', options: [ {text: '', correct: true}, {text: '', correct: false} ] });
+        questions.push({ text: '', marks: null, negative_marks: null, time_limit_seconds: null, options: [ {text: '', correct: true}, {text: '', correct: false} ] });
         renderQuestions();
+    }
+
+    function removeQuestion(qId) {
+        questions.splice(qId, 1);
+        renderQuestions();
+    }
+
+    function updateQuestionField(qId, field, value) {
+        if(value === "") questions[qId][field] = null;
+        else questions[qId][field] = parseFloat(value);
     }
 
     function updateQuestion(qId, text) {
@@ -84,17 +112,50 @@
         renderQuestions();
     }
 
+    function toggleTimerSettings() {
+        const timerType = document.getElementById('timer_type').value;
+        const durationWrapper = document.getElementById('duration').closest('.col-md-4');
+        if (timerType === 'per_question') {
+            durationWrapper.style.display = 'none';
+        } else {
+            durationWrapper.style.display = 'block';
+        }
+        renderQuestions();
+    }
+
     function renderQuestions() {
         const container = document.getElementById('questions_container');
         container.innerHTML = '';
 
         questions.forEach((q, qId) => {
+            let timeLimitHtml = '';
+            if (document.getElementById('timer_type') && document.getElementById('timer_type').value === 'per_question') {
+                timeLimitHtml = `
+                    <div class="col-md-4">
+                        <label class="form-label small text-muted">Time Limit (Seconds)</label>
+                        <input type="number" class="form-control form-control-sm" placeholder="e.g. 60" value="${q.time_limit_seconds || ''}" oninput="updateQuestionField(${qId}, 'time_limit_seconds', this.value)">
+                    </div>
+                `;
+            }
+
             let html = `
             <div class="card mb-4 border bg-transparent">
                 <div class="card-body">
-                    <h6 class="fw-bold">Question ${qId + 1}</h6>
+                    <h6 class="fw-bold">Question ${qId + 1} <button type="button" class="btn btn-sm btn-link text-danger float-end py-0" onclick="removeQuestion(${qId})">Remove</button></h6>
                     <input type="text" class="form-control mb-3" placeholder="Enter question text" value="${q.text}" oninput="updateQuestion(${qId}, this.value)">
                     
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Override Marks (Optional)</label>
+                            <input type="number" step="0.5" class="form-control form-control-sm" placeholder="Uses default if empty" value="${q.marks !== null ? q.marks : ''}" oninput="updateQuestionField(${qId}, 'marks', this.value)">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Override Negative Marks (Optional)</label>
+                            <input type="number" step="0.1" class="form-control form-control-sm" placeholder="Uses default if empty" value="${q.negative_marks !== null ? q.negative_marks : ''}" oninput="updateQuestionField(${qId}, 'negative_marks', this.value)">
+                        </div>
+                        ${timeLimitHtml}
+                    </div>
+
                     <div class="ps-3 border-start border-3 border-primary">
             `;
 
@@ -120,14 +181,60 @@
     }
 
     async function submitExam() {
+        const title = document.getElementById('exam_title').value.trim();
+        if (!title) {
+            alert('Please enter an exam title.');
+            return;
+        }
+
+        const startTimeInput = document.getElementById('start_time').value;
+        const endTimeInput = document.getElementById('end_time').value;
+
+        if (!startTimeInput || !endTimeInput) {
+            alert('Please select both start and end times.');
+            return;
+        }
+
+        const startTime = new Date(startTimeInput);
+        const endTime = new Date(endTimeInput);
+        const now = new Date();
+
+        if (startTime < now) {
+            alert('Exam start time cannot be in the past.');
+            return;
+        }
+
+        if (endTime <= startTime) {
+            alert('Exam end time must be after the start time.');
+            return;
+        }
+
+        const validQuestions = questions.filter(q => q.text && q.text.trim().length > 0);
+        if (validQuestions.length === 0) {
+            alert('At least 1 question with text must be added to create an exam.');
+            return;
+        }
+
+        const hasEmptyQuestions = questions.some(q => !q.text || q.text.trim() === '');
+        if (hasEmptyQuestions) {
+            alert('Some questions are empty. Please fill them out or remove them.');
+            return;
+        }
+
         const payload = {
             title: document.getElementById('exam_title').value,
             group_id: parseInt(document.getElementById('exam_group').value),
             start_time: new Date(document.getElementById('start_time').value).toISOString(),
             end_time: new Date(document.getElementById('end_time').value).toISOString(),
-            duration_minutes: parseInt(document.getElementById('duration').value),
+            duration_minutes: parseInt(document.getElementById('duration').value) || 0,
+            timer_type: document.getElementById('timer_type').value,
+            default_marks: parseFloat(document.getElementById('default_marks').value),
+            default_negative_marks: parseFloat(document.getElementById('default_negative_marks').value),
             questions: questions.map(q => ({
                 text: q.text,
+                marks: q.marks,
+                negative_marks: q.negative_marks,
+                time_limit_seconds: q.time_limit_seconds,
                 options: q.options.map(o => ({
                     text: o.text,
                     is_correct: o.correct

@@ -1,42 +1,252 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row mb-4 align-items-center">
-    <div class="col">
-        <a href="/teacher/dashboard" class="text-decoration-none text-muted mb-2 d-inline-block">&larr; Back to Dashboard</a>
-        <h2 class="fw-bold">Edit Exam Settings</h2>
-        <p class="text-muted">Modify schedule and parameters for <strong class="text-primary">{{ exam.title }}</strong>.</p>
-    </div>
+<div class="mb-4">
+    <a href="/teacher/dashboard" class="text-decoration-none">&larr; Back to Dashboard</a>
 </div>
 
-<div class="card glass-card mx-auto" style="max-width: 600px;">
+<div class="card glass-card mb-5">
     <div class="card-body p-4">
-        <form method="POST" action="/teacher/exam/{{ exam.id }}/settings">
-            <div class="mb-3">
-                <label class="form-label fw-bold">Exam Title</label>
-                <input type="text" name="title" class="form-control" value="{{ exam.title }}" required>
+        <h3 class="fw-bold mb-4">Edit Exam Settings</h3>
+        
+        <div class="row mb-3">
+            <div class="col-md-12 mb-3">
+                <label class="form-label fw-medium">Exam Title</label>
+                <input type="text" id="exam_title" class="form-control" value="{{ exam.title }}">
             </div>
-            
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">Start Window</label>
-                    <input type="datetime-local" name="start_time" class="form-control" value="{{ start_time }}" required>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">End Window</label>
-                    <input type="datetime-local" name="end_time" class="form-control" value="{{ end_time }}" required>
-                </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-medium">Start Time</label>
+                <input type="datetime-local" id="start_time" class="form-control" value="{{ start_time }}">
             </div>
-            
-            <div class="mb-4">
-                <label class="form-label fw-bold">Time Limit (Minutes)</label>
-                <input type="number" name="duration_minutes" class="form-control" value="{{ exam.duration_minutes }}" required min="1">
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-medium">End Time</label>
+                <input type="datetime-local" id="end_time" class="form-control" value="{{ end_time }}">
             </div>
-            
-            <div class="d-grid">
-                <button type="submit" class="btn btn-primary-custom btn-lg">💾 Save Settings</button>
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-medium">Duration (minutes)</label>
+                <input type="number" id="duration" class="form-control" value="{{ exam.duration_minutes }}">
             </div>
-        </form>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-medium">Timer Mode</label>
+                <select id="timer_type" class="form-select" onchange="toggleTimerSettings()">
+                    <option value="overall" {% if exam.timer_type != 'per_question' %}selected{% endif %}>Overall Exam Timer</option>
+                    <option value="per_question" {% if exam.timer_type == 'per_question' %}selected{% endif %}>Per Question Timer</option>
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-medium">Default Marks <span class="text-muted small fw-normal">(for correct answer)</span></label>
+                <input type="number" step="0.5" id="default_marks" class="form-control" value="{{ exam.default_marks }}" min="0">
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-medium">Default Negative Marks</label>
+                <input type="number" step="0.1" id="default_negative_marks" class="form-control" value="{{ exam.default_negative_marks }}">
+            </div>
+        </div>
+
+        <hr class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold m-0">Questions</h4>
+        </div>
+        
+        <div id="questions_container"></div>
+
+        <button type="button" class="btn btn-outline-primary mt-3 mb-4" onclick="addQuestion()">+ Add Question</button>
+
+        <hr>
+        <div class="text-end">
+            <button type="button" class="btn btn-primary-custom" onclick="submitExam()">💾 Save Changes</button>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let questions = {{ questions_json | safe }};
+
+    function addQuestion() {
+        questions.push({ text: '', marks: null, negative_marks: null, time_limit_seconds: null, options: [ {text: '', correct: true}, {text: '', correct: false} ] });
+        renderQuestions();
+    }
+
+    function removeQuestion(qId) {
+        questions.splice(qId, 1);
+        renderQuestions();
+    }
+
+    function updateQuestionField(qId, field, value) {
+        if(value === "") questions[qId][field] = null;
+        else questions[qId][field] = parseFloat(value);
+    }
+
+    function updateQuestion(qId, text) {
+        questions[qId].text = text;
+    }
+
+    function addOption(qId) {
+        questions[qId].options.push({ text: '', correct: false });
+        renderQuestions();
+    }
+
+    function updateOption(qId, oId, text) {
+        questions[qId].options[oId].text = text;
+    }
+
+    function setCorrectOption(qId, oId) {
+        questions[qId].options.forEach((opt, idx) => {
+            opt.correct = (idx === oId);
+        });
+        renderQuestions();
+    }
+
+    function toggleTimerSettings() {
+        const timerType = document.getElementById('timer_type').value;
+        const durationWrapper = document.getElementById('duration').closest('.col-md-4');
+        if (timerType === 'per_question') {
+            durationWrapper.style.display = 'none';
+        } else {
+            durationWrapper.style.display = 'block';
+        }
+        renderQuestions();
+    }
+
+    function renderQuestions() {
+        const container = document.getElementById('questions_container');
+        container.innerHTML = '';
+
+        questions.forEach((q, qId) => {
+            let timeLimitHtml = '';
+            if (document.getElementById('timer_type') && document.getElementById('timer_type').value === 'per_question') {
+                timeLimitHtml = `
+                    <div class="col-md-4">
+                        <label class="form-label small text-muted">Time Limit (Seconds)</label>
+                        <input type="number" class="form-control form-control-sm" placeholder="e.g. 60" value="${q.time_limit_seconds || ''}" oninput="updateQuestionField(${qId}, 'time_limit_seconds', this.value)">
+                    </div>
+                `;
+            }
+
+            let html = `
+            <div class="card mb-4 border bg-transparent">
+                <div class="card-body">
+                    <h6 class="fw-bold">Question ${qId + 1} <button type="button" class="btn btn-sm btn-link text-danger float-end py-0" onclick="removeQuestion(${qId})">Remove</button></h6>
+                    <input type="text" class="form-control mb-3" placeholder="Enter question text" value="${q.text}" oninput="updateQuestion(${qId}, this.value)">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Override Marks (Optional)</label>
+                            <input type="number" step="0.5" class="form-control form-control-sm" placeholder="Uses default if empty" value="${q.marks !== null ? q.marks : ''}" oninput="updateQuestionField(${qId}, 'marks', this.value)">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">Override Negative Marks (Optional)</label>
+                            <input type="number" step="0.1" class="form-control form-control-sm" placeholder="Uses default if empty" value="${q.negative_marks !== null ? q.negative_marks : ''}" oninput="updateQuestionField(${qId}, 'negative_marks', this.value)">
+                        </div>
+                        ${timeLimitHtml}
+                    </div>
+
+                    <div class="ps-3 border-start border-3 border-primary">
+            `;
+
+            q.options.forEach((opt, oId) => {
+                html += `
+                    <div class="input-group mb-2">
+                        <div class="input-group-text">
+                            <input class="form-check-input mt-0" type="radio" name="correct_q${qId}" onchange="setCorrectOption(${qId}, ${oId})" ${opt.correct ? 'checked' : ''}>
+                        </div>
+                        <input type="text" class="form-control" placeholder="Option text" value="${opt.text}" oninput="updateOption(${qId}, ${oId}, this.value)">
+                    </div>
+                `;
+            });
+
+            html += `
+                    <button type="button" class="btn btn-sm btn-secondary mt-2" onclick="addOption(${qId})">+ Add Option</button>
+                    </div>
+                </div>
+            </div>
+            `;
+            container.innerHTML += html;
+        });
+    }
+
+    async function submitExam() {
+        const title = document.getElementById('exam_title').value.trim();
+        if (!title) {
+            alert('Please enter an exam title.');
+            return;
+        }
+
+        const startTimeInput = document.getElementById('start_time').value;
+        const endTimeInput = document.getElementById('end_time').value;
+
+        if (!startTimeInput || !endTimeInput) {
+            alert('Please select both start and end times.');
+            return;
+        }
+
+        const startTime = new Date(startTimeInput);
+        const endTime = new Date(endTimeInput);
+        const now = new Date();
+
+        // Warning if editing an ongoing or past test explicitly to be past
+        // Past edits are generally bad practice, but we just warn.
+        if (endTime <= startTime) {
+            alert('Exam end time must be after the start time.');
+            return;
+        }
+
+        const validQuestions = questions.filter(q => q.text && q.text.trim().length > 0);
+        if (validQuestions.length === 0) {
+            alert('At least 1 question with text must be added to save the exam.');
+            return;
+        }
+
+        const hasEmptyQuestions = questions.some(q => !q.text || q.text.trim() === '');
+        if (hasEmptyQuestions) {
+            alert('Some questions are empty. Please fill them out or remove them.');
+            return;
+        }
+
+        const payload = {
+            title: document.getElementById('exam_title').value,
+            start_time: new Date(document.getElementById('start_time').value).toISOString(),
+            end_time: new Date(document.getElementById('end_time').value).toISOString(),
+            duration_minutes: parseInt(document.getElementById('duration').value) || 0,
+            timer_type: document.getElementById('timer_type').value,
+            default_marks: parseFloat(document.getElementById('default_marks').value),
+            default_negative_marks: parseFloat(document.getElementById('default_negative_marks').value),
+            questions: questions.map(q => ({
+                id: q.id || null,
+                text: q.text,
+                marks: q.marks,
+                negative_marks: q.negative_marks,
+                time_limit_seconds: q.time_limit_seconds,
+                options: q.options.map(o => ({
+                    id: o.id || null,
+                    text: o.text,
+                    is_correct: o.correct
+                }))
+            }))
+        };
+
+        const res = await fetch('/teacher/api/edit_exam/{{ exam.id }}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            window.location.href = '/teacher/dashboard';
+        } else {
+            alert('Error updating exam. Check inputs.');
+        }
+    }
+
+    // Initialize 
+    toggleTimerSettings();
+</script>
 {% endblock %}

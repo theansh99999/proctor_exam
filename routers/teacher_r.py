@@ -175,7 +175,7 @@ def exam_editor(request: Request, db: Session = Depends(database.get_db), curren
     return templates.TemplateResponse(request=request, name="teacher/exam_editor.html", context={"groups": groups, "user": current_user})
 
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 class OptionCreate(BaseModel):
     text: str
@@ -184,6 +184,9 @@ class OptionCreate(BaseModel):
 class QuestionCreate(BaseModel):
     text: str
     options: List[OptionCreate]
+    marks: Optional[float] = None
+    negative_marks: Optional[float] = None
+    time_limit_seconds: Optional[int] = None
 
 class ExamCreateAPI(BaseModel):
     title: str
@@ -191,7 +194,33 @@ class ExamCreateAPI(BaseModel):
     start_time: str
     end_time: str
     duration_minutes: int
+    timer_type: str = "overall"
+    default_marks: float = 1.0
+    default_negative_marks: float = 0.0
     questions: List[QuestionCreate]
+
+class OptionEdit(BaseModel):
+    id: Optional[int] = None
+    text: str
+    is_correct: bool
+
+class QuestionEdit(BaseModel):
+    id: Optional[int] = None
+    text: str
+    options: List[OptionEdit]
+    marks: Optional[float] = None
+    negative_marks: Optional[float] = None
+    time_limit_seconds: Optional[int] = None
+
+class ExamEditAPI(BaseModel):
+    title: str
+    start_time: str
+    end_time: str
+    duration_minutes: int
+    timer_type: str = "overall"
+    default_marks: float = 1.0
+    default_negative_marks: float = 0.0
+    questions: List[QuestionEdit]
 
 import time
 
@@ -202,6 +231,8 @@ def notify_students_via_email(group_members, exam_title):
 
 @router.post("/api/create_exam")
 def api_create_exam(exam_data: ExamCreateAPI, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_teacher)):
+    if not exam_data.questions:
+        raise HTTPException(status_code=400, detail="At least 1 question must be added")
     # parse datetime
     try:
         st = datetime.datetime.fromisoformat(exam_data.start_time.replace('Z', '+00:00'))
@@ -216,14 +247,23 @@ def api_create_exam(exam_data: ExamCreateAPI, background_tasks: BackgroundTasks,
         group_id=exam_data.group_id,
         start_time=st,
         end_time=et,
-        duration_minutes=exam_data.duration_minutes
+        duration_minutes=exam_data.duration_minutes,
+        timer_type=exam_data.timer_type,
+        default_marks=exam_data.default_marks,
+        default_negative_marks=exam_data.default_negative_marks
     )
     db.add(new_exam)
     db.commit()
     db.refresh(new_exam)
 
     for q_data in exam_data.questions:
-        q = models.Question(exam_id=new_exam.id, text=q_data.text)
+        q = models.Question(
+            exam_id=new_exam.id, 
+            text=q_data.text,
+            marks=q_data.marks,
+            negative_marks=q_data.negative_marks,
+            time_limit_seconds=q_data.time_limit_seconds
+        )
         db.add(q)
         db.commit()
         db.refresh(q)
@@ -306,36 +346,100 @@ def edit_exam_settings_page(exam_id: int, request: Request, db: Session = Depend
     if not exam or exam.group.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
+    questions_data = []
+    for q in exam.questions:
+        q_dict = {
+            "id": q.id,
+            "text": q.text,
+            "marks": q.marks,
+            "negative_marks": q.negative_marks,
+            "time_limit_seconds": q.time_limit_seconds,
+            "options": [{"id": o.id, "text": o.text, "correct": o.is_correct} for o in q.options]
+        }
+        questions_data.append(q_dict)
+
     return templates.TemplateResponse(request=request, name="teacher/exam_settings.html", context={
         "user": current_user,
         "exam": exam,
         "start_time": exam.start_time.strftime('%Y-%m-%dT%H:%M'),
-        "end_time": exam.end_time.strftime('%Y-%m-%dT%H:%M')
+        "end_time": exam.end_time.strftime('%Y-%m-%dT%H:%M'),
+        "questions_json": json.dumps(questions_data)
     })
 
-@router.post("/exam/{exam_id}/settings")
-def edit_exam_settings_submit(
+@router.post("/api/edit_exam/{exam_id}")
+def api_edit_exam(
     exam_id: int,
-    title: str = Form(...),
-    start_time: str = Form(...),
-    end_time: str = Form(...),
-    duration_minutes: int = Form(...),
+    exam_data: ExamEditAPI,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.require_teacher)
 ):
     exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
     if not exam or exam.group.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
+        
+    if not exam_data.questions:
+        raise HTTPException(status_code=400, detail="At least 1 question must be added")
 
-    exam.title = title
+    exam.title = exam_data.title
     try:
-        exam.start_time = datetime.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-        exam.end_time = datetime.datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+        exam.start_time = datetime.datetime.fromisoformat(exam_data.start_time.replace('Z', '+00:00'))
+        exam.end_time = datetime.datetime.fromisoformat(exam_data.end_time.replace('Z', '+00:00'))
     except Exception:
-        exam.start_time = datetime.datetime.strptime(start_time, "%Y-%m-%dT%H:%M")
-        exam.end_time = datetime.datetime.strptime(end_time, "%Y-%m-%dT%H:%M")
+        exam.start_time = datetime.datetime.strptime(exam_data.start_time, "%Y-%m-%dT%H:%M")
+        exam.end_time = datetime.datetime.strptime(exam_data.end_time, "%Y-%m-%dT%H:%M")
     
-    exam.duration_minutes = duration_minutes
+    exam.duration_minutes = exam_data.duration_minutes
+    exam.timer_type = exam_data.timer_type
+    exam.default_marks = exam_data.default_marks
+    exam.default_negative_marks = exam_data.default_negative_marks
+
+    incoming_q_ids = [q.id for q in exam_data.questions if q.id is not None]
+    
+    # Delete removed questions
+    for existing_q in exam.questions:
+        if existing_q.id not in incoming_q_ids:
+            db.query(models.StudentAnswer).filter(models.StudentAnswer.question_id == existing_q.id).delete()
+            db.delete(existing_q)
+            
+    # Update / Insert questions
+    for q_data in exam_data.questions:
+        if q_data.id is not None:
+            q = db.query(models.Question).filter_by(id=q_data.id).first()
+            if q:
+                q.text = q_data.text
+                q.marks = q_data.marks
+                q.negative_marks = q_data.negative_marks
+                q.time_limit_seconds = q_data.time_limit_seconds
+                
+                incoming_o_ids = [o.id for o in q_data.options if o.id is not None]
+                for existing_o in q.options:
+                    if existing_o.id not in incoming_o_ids:
+                        db.query(models.StudentAnswer).filter(models.StudentAnswer.selected_option_id == existing_o.id).delete()
+                        db.delete(existing_o)
+                        
+                for o_data in q_data.options:
+                    if o_data.id is not None:
+                        o = db.query(models.Option).filter_by(id=o_data.id).first()
+                        if o:
+                            o.text = o_data.text
+                            o.is_correct = o_data.is_correct
+                    else:
+                        new_o = models.Option(question_id=q.id, text=o_data.text, is_correct=o_data.is_correct)
+                        db.add(new_o)
+        else:
+            new_q = models.Question(
+                exam_id=exam.id, 
+                text=q_data.text,
+                marks=q_data.marks,
+                negative_marks=q_data.negative_marks,
+                time_limit_seconds=q_data.time_limit_seconds
+            )
+            db.add(new_q)
+            db.commit()
+            db.refresh(new_q)
+            for o_data in q_data.options:
+                new_o = models.Option(question_id=new_q.id, text=o_data.text, is_correct=o_data.is_correct)
+                db.add(new_o)
+
     db.commit()
-    
-    return RedirectResponse(url="/teacher/dashboard", status_code=302)
+    return {"status": "success"}

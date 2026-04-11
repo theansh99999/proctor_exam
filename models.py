@@ -45,6 +45,9 @@ class Exam(Base):
     start_time = Column(DateTime)
     end_time = Column(DateTime)
     duration_minutes = Column(Integer)
+    timer_type = Column(String, default="overall") # "overall" or "per_question"
+    default_marks = Column(Float, default=1.0)
+    default_negative_marks = Column(Float, default=0.0)
 
     group = relationship("Group", back_populates="exams")
     questions = relationship("Question", back_populates="exam", cascade="all, delete-orphan")
@@ -56,6 +59,9 @@ class Question(Base):
     id = Column(Integer, primary_key=True, index=True)
     exam_id = Column(Integer, ForeignKey("exams.id"))
     text = Column(String)
+    marks = Column(Float, nullable=True)
+    negative_marks = Column(Float, nullable=True)
+    time_limit_seconds = Column(Integer, nullable=True)
 
     exam = relationship("Exam", back_populates="questions")
     options = relationship("Option", back_populates="question", cascade="all, delete-orphan")
