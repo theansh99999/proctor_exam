@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="fw-bold mb-0">All Notifications</h3>
+                <form method="POST" action="/teacher/notifications/clear">
+                    {% if not is_student %}
+                    <button type="submit" class="btn btn-outline-danger fw-bold rounded-pill px-4 shadow-sm">
+                        Clear Alerts
+                    </button>
+                    {% endif %}
+                </form>
+            </div>
+            
+            <div class="card glass-card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush rounded-3">
+                        {% for alert in alerts %}
+                        <div class="list-group-item p-4 border-bottom bg-transparent hover-shadow-sm d-flex align-items-start">
+                            {% if alert.bg_color == 'bg-danger' %}
+                            <div class="bg-danger text-white rounded-circle d-flex justify-content-center align-items-center me-3 shadow-sm" style="width: 45px; height: 45px; flex-shrink: 0;">
+                                <span class="fs-5">⚠️</span>
+                            </div>
+                            {% else %}
+                            <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center me-3 shadow-sm" style="width: 45px; height: 45px; flex-shrink: 0;">
+                                <span class="fs-5">📅</span>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="flex-grow-1">
+                                <h6 class="fw-bold text-body-emphasis mb-1" style="font-size: 1.1rem;">
+                                    {{ alert.message }}
+                                </h6>
+                                <p class="text-muted small fw-medium mb-0">
+                                    {{ alert.time }}
+                                </p>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center p-5">
+                            <span class="fs-1 d-block mb-3 opacity-50">📭</span>
+                            <h5 class="fw-bold text-muted">You're all caught up!</h5>
+                            <p class="text-muted small mb-0">There are no active security alerts or upcoming exams to review.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="/teacher/dashboard" class="btn btn-light fw-bold px-4 rounded-pill shadow-sm text-muted">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -40,20 +40,24 @@
         </div>
 
         <div class="row mb-4">
-            <div class="col-md-4 mb-3">
+            <div class="col-md-3 mb-3">
                 <label class="form-label fw-medium">Timer Mode</label>
                 <select id="timer_type" class="form-select" onchange="toggleTimerSettings()">
                     <option value="overall">Overall Exam Timer</option>
                     <option value="per_question">Per Question Timer</option>
                 </select>
             </div>
-            <div class="col-md-4 mb-3">
-                <label class="form-label fw-medium">Default Marks <span class="text-muted small fw-normal">(for correct answer)</span></label>
-                <input type="number" step="0.5" id="default_marks" class="form-control" value="1" min="0">
+            <div class="col-md-3 mb-3">
+                <label class="form-label fw-medium">Default Marks</label>
+                <input type="number" step="0.5" id="default_marks" class="form-control" value="1" min="0" oninput="calculateTotalMarks()">
             </div>
-            <div class="col-md-4 mb-3">
-                <label class="form-label fw-medium">Default Negative Marks</label>
+            <div class="col-md-3 mb-3">
+                <label class="form-label fw-medium">Negative Marks</label>
                 <input type="number" step="0.1" id="default_negative_marks" class="form-control" value="0">
+            </div>
+            <div class="col-md-3 mb-3">
+                <label class="form-label fw-medium text-success">Passing Marks</label>
+                <input type="number" step="0.5" id="passing_marks" class="form-control" value="0" min="0">
             </div>
         </div>
 
@@ -65,7 +69,10 @@
         <button type="button" class="btn btn-outline-primary mt-3 mb-4" onclick="addQuestion()">+ Add Question</button>
 
         <hr>
-        <div class="text-end">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="p-3 bg-secondary bg-opacity-10 rounded shadow-sm border border-secondary border-opacity-25">
+                <span class="fs-5 fw-bold text-body-emphasis">Total Possible Marks: <span class="text-primary fs-4 ms-2" id="total_marks_display">0.0</span></span>
+            </div>
             <button type="button" class="btn btn-primary-custom" onclick="submitExam()">Create Exam</button>
         </div>
     </div>
@@ -80,16 +87,19 @@
         const qId = questions.length;
         questions.push({ text: '', marks: null, negative_marks: null, time_limit_seconds: null, options: [ {text: '', correct: true}, {text: '', correct: false} ] });
         renderQuestions();
+        calculateTotalMarks();
     }
 
     function removeQuestion(qId) {
         questions.splice(qId, 1);
         renderQuestions();
+        calculateTotalMarks();
     }
 
     function updateQuestionField(qId, field, value) {
         if(value === "") questions[qId][field] = null;
         else questions[qId][field] = parseFloat(value);
+        if(field === 'marks') calculateTotalMarks();
     }
 
     function updateQuestion(qId, text) {
@@ -110,6 +120,19 @@
             opt.correct = (idx === oId);
         });
         renderQuestions();
+    }
+    
+    function calculateTotalMarks() {
+        const defaultMarks = parseFloat(document.getElementById('default_marks').value) || 0;
+        let total = 0;
+        for (let q of questions) {
+            if (q.marks !== null && q.marks !== undefined) {
+                total += parseFloat(q.marks) || 0;
+            } else {
+                total += defaultMarks;
+            }
+        }
+        document.getElementById('total_marks_display').innerText = total.toFixed(1);
     }
 
     function toggleTimerSettings() {
@@ -230,6 +253,7 @@
             timer_type: document.getElementById('timer_type').value,
             default_marks: parseFloat(document.getElementById('default_marks').value),
             default_negative_marks: parseFloat(document.getElementById('default_negative_marks').value),
+            passing_marks: parseFloat(document.getElementById('passing_marks').value),
             questions: questions.map(q => ({
                 text: q.text,
                 marks: q.marks,

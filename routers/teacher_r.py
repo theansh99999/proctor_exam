@@ -77,20 +77,9 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     # ---------------------------
     recent_alerts = []
     
-    # Upcoming exams
-    for e in exams:
-        if now < e.start_time < now + datetime.timedelta(days=7):
-            recent_alerts.append({
-                "type": "exam",
-                "bg_color": "bg-primary",
-                "message": f"Upcoming Exam '{e.title}' is scheduled to start soon.",
-                "time": e.start_time.strftime('%b %d, %I:%M %p'),
-                "timestamp": e.start_time - datetime.timedelta(hours=24) # Hack to put it near current time for sorting
-            })
-            
     # Recent Cheat Flags
     if group_ids:
-        recent_flags = db.query(models.CheatFlag).join(models.Exam).filter(models.Exam.group_id.in_(group_ids)).order_by(models.CheatFlag.timestamp.desc()).limit(5).all()
+        recent_flags = db.query(models.CheatFlag).join(models.Exam).filter(models.Exam.group_id.in_(group_ids), models.CheatFlag.is_resolved.is_(False)).order_by(models.CheatFlag.timestamp.desc()).limit(5).all()
         for f in recent_flags:
             recent_alerts.append({
                 "type": "flag",
@@ -129,6 +118,48 @@ def create_group(name: str = Form(...), db: Session = Depends(database.get_db), 
     db.add(new_group)
     db.commit()
     return RedirectResponse(url="/teacher/dashboard", status_code=302)
+
+@router.get("/notifications", response_class=HTMLResponse)
+def view_notifications(request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_teacher)):
+    now = datetime.datetime.utcnow()
+    groups = db.query(models.Group).filter(models.Group.teacher_id == current_user.id).all()
+    group_ids = [g.id for g in groups]
+    
+    alerts = []
+    
+    # Unresolved Flags
+    flags = []
+    if group_ids:
+        flags = db.query(models.CheatFlag).join(models.Exam).filter(models.Exam.group_id.in_(group_ids), models.CheatFlag.is_resolved.is_(False)).order_by(models.CheatFlag.timestamp.desc()).all()
+    for f in flags:
+        alerts.append({
+            "id": f.id,
+            "type": "flag",
+            "bg_color": "bg-danger",
+            "message": f"{f.student.name} triggered violation in '{f.exam.title}': {f.description}",
+            "time": f.timestamp.strftime('%I:%M %p Today' if f.timestamp.date() == now.date() else '%b %d, %I:%M %p'),
+            "timestamp": f.timestamp
+        })
+        
+    alerts.sort(key=lambda x: x["timestamp"], reverse=True)
+    return templates.TemplateResponse(request=request, name="teacher/notifications.html", context={"user": current_user, "alerts": alerts})
+
+@router.post("/notifications/clear")
+def clear_notifications(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_teacher)):
+    groups = db.query(models.Group).filter(models.Group.teacher_id == current_user.id).all()
+    group_ids = [g.id for g in groups]
+    
+    if group_ids:
+        # Resolve all flags
+        db.query(models.CheatFlag).filter(
+            models.CheatFlag.exam_id.in_(
+                db.query(models.Exam.id).filter(models.Exam.group_id.in_(group_ids))
+            ),
+            models.CheatFlag.is_resolved.is_(False)
+        ).update({"is_resolved": True}, synchronize_session=False)
+        
+        db.commit()
+    return RedirectResponse(url="/teacher/notifications", status_code=302)
 
 @router.post("/group/{group_id}/delete")
 def delete_group(group_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_teacher)):
@@ -197,6 +228,7 @@ class ExamCreateAPI(BaseModel):
     timer_type: str = "overall"
     default_marks: float = 1.0
     default_negative_marks: float = 0.0
+    passing_marks: float = 0.0
     questions: List[QuestionCreate]
 
 class OptionEdit(BaseModel):
@@ -220,6 +252,7 @@ class ExamEditAPI(BaseModel):
     timer_type: str = "overall"
     default_marks: float = 1.0
     default_negative_marks: float = 0.0
+    passing_marks: float = 0.0
     questions: List[QuestionEdit]
 
 import time
@@ -250,7 +283,8 @@ def api_create_exam(exam_data: ExamCreateAPI, background_tasks: BackgroundTasks,
         duration_minutes=exam_data.duration_minutes,
         timer_type=exam_data.timer_type,
         default_marks=exam_data.default_marks,
-        default_negative_marks=exam_data.default_negative_marks
+        default_negative_marks=exam_data.default_negative_marks,
+        passing_marks=exam_data.passing_marks
     )
     db.add(new_exam)
     db.commit()
@@ -290,6 +324,16 @@ def view_submissions(exam_id: int, request: Request, db: Session = Depends(datab
     labels = []
     scores = []
     total_score = 0
+    passing_marks = exam.passing_marks or 0
+    
+    # Calculate total possible marks for this exam
+    questions = db.query(models.Question).filter(models.Question.exam_id == exam_id).order_by(models.Question.id).all()
+    total_possible = sum(
+        (q.marks if q.marks is not None else exam.default_marks) for q in questions
+    )
+    
+    passed_submissions = []
+    failed_submissions = []
     
     for sub in submissions:
         sub.student_name = sub.student.name
@@ -297,12 +341,114 @@ def view_submissions(exam_id: int, request: Request, db: Session = Depends(datab
         labels.append(sub.student.name)
         scores.append(round(sub.score, 2))
         total_score += sub.score
+        if sub.score >= passing_marks:
+            passed_submissions.append(sub)
+        else:
+            failed_submissions.append(sub)
         
     avg_score = round(total_score / len(submissions), 2) if submissions else 0
+    
+    # --- Per-Question Analysis ---
+    total_students = len(submissions)
+    question_analysis = []
+    for idx, q in enumerate(questions):
+        q_marks = q.marks if q.marks is not None else exam.default_marks
+        all_answers = db.query(models.StudentAnswer).filter(models.StudentAnswer.question_id == q.id).all()
+        correct_count = sum(1 for a in all_answers if a.is_correct)
+        wrong_count = sum(1 for a in all_answers if not a.is_correct and a.selected_option_id is not None)
+        skipped_count = total_students - len(all_answers)
+        
+        # Per-option breakdown
+        option_stats = []
+        for opt in q.options:
+            picked_by = [
+                a.submission.student.name 
+                for a in all_answers 
+                if a.selected_option_id == opt.id
+            ]
+            option_stats.append({
+                "id": opt.id,
+                "text": opt.text,
+                "is_correct": opt.is_correct,
+                "count": len(picked_by),
+                "students": picked_by
+            })
+        
+        question_analysis.append({
+            "num": idx + 1,
+            "id": q.id,
+            "text": q.text,
+            "marks": q_marks,
+            "correct_count": correct_count,
+            "wrong_count": wrong_count,
+            "skipped_count": skipped_count,
+            "total": total_students,
+            "option_stats": option_stats
+        })
         
     return templates.TemplateResponse(request=request, name="teacher/submissions.html", context={
         "user": current_user, "exam": exam, "submissions": submissions,
-        "avg_score": avg_score, "chart_labels": json.dumps(labels), "chart_scores": json.dumps(scores)
+        "passed_submissions": passed_submissions,
+        "failed_submissions": failed_submissions,
+        "avg_score": avg_score,
+        "passing_marks": passing_marks,
+        "total_possible": total_possible,
+        "question_analysis": question_analysis,
+        "chart_labels": json.dumps(labels),
+        "chart_scores": json.dumps(scores)
+    })
+
+@router.get("/exam/{exam_id}/student/{student_id}/report", response_class=HTMLResponse)
+def view_student_report(exam_id: int, student_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_teacher)):
+    exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+    if not exam or exam.group.teacher_id != current_user.id:
+        return RedirectResponse(url="/teacher/dashboard", status_code=302)
+    
+    student = db.query(models.User).filter(models.User.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    submission = db.query(models.Submission).filter(
+        models.Submission.exam_id == exam_id,
+        models.Submission.student_id == student_id
+    ).first()
+    if not submission:
+        return RedirectResponse(url=f"/teacher/exam/{exam_id}/submissions", status_code=302)
+    
+    questions = db.query(models.Question).filter(models.Question.exam_id == exam_id).order_by(models.Question.id).all()
+    answers_map = {
+        a.question_id: a 
+        for a in db.query(models.StudentAnswer).filter(models.StudentAnswer.submission_id == submission.id).all()
+    }
+    
+    total_possible = sum((q.marks if q.marks is not None else exam.default_marks) for q in questions)
+    
+    report_rows = []
+    for idx, q in enumerate(questions):
+        ans = answers_map.get(q.id)
+        correct_opt = next((o for o in q.options if o.is_correct), None)
+        selected_opt = ans.selected_option if ans and ans.selected_option_id else None
+        q_marks = q.marks if q.marks is not None else exam.default_marks
+        
+        report_rows.append({
+            "num": idx + 1,
+            "text": q.text,
+            "marks": q_marks,
+            "options": q.options,
+            "selected_option": selected_opt,
+            "correct_option": correct_opt,
+            "is_correct": ans.is_correct if ans else False,
+            "skipped": ans is None or ans.selected_option_id is None
+        })
+    
+    return templates.TemplateResponse(request=request, name="teacher/student_report.html", context={
+        "user": current_user,
+        "exam": exam,
+        "student": student,
+        "submission": submission,
+        "report_rows": report_rows,
+        "total_possible": total_possible,
+        "passing_marks": exam.passing_marks or 0
     })
 
 @router.get("/exam/{exam_id}/student/{student_id}/flags", response_class=HTMLResponse)
@@ -392,6 +538,7 @@ def api_edit_exam(
     exam.timer_type = exam_data.timer_type
     exam.default_marks = exam_data.default_marks
     exam.default_negative_marks = exam_data.default_negative_marks
+    exam.passing_marks = exam_data.passing_marks
 
     incoming_q_ids = [q.id for q in exam_data.questions if q.id is not None]
     

@@ -109,17 +109,20 @@ def take_exam(exam_id: int, request: Request, db: Session = Depends(database.get
 async def submit_exam(exam_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
     form_data = await request.form()
     
-    # Calculate score
+    exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
     questions = db.query(models.Question).filter(models.Question.exam_id == exam_id).all()
-    correct_count = 0
-    total_count = len(questions)
-
+    
     sub = models.Submission(exam_id=exam_id, student_id=current_user.id, score=0.0)
     db.add(sub)
     db.commit()
     db.refresh(sub)
 
+    total_score = 0.0
+
     for q in questions:
+        q_marks = q.marks if q.marks is not None else exam.default_marks
+        q_neg_marks = q.negative_marks if q.negative_marks is not None else exam.default_negative_marks
+        
         selected_option_id = form_data.get(f"question_{q.id}")
         is_correct = False
         opt_val = None
@@ -128,7 +131,9 @@ async def submit_exam(exam_id: int, request: Request, db: Session = Depends(data
             option = db.query(models.Option).filter(models.Option.id == opt_val).first()
             if option and option.is_correct:
                 is_correct = True
-                correct_count += 1
+                total_score += q_marks
+            else:
+                total_score -= q_neg_marks
                 
         # Save Answer deeply
         ans = models.StudentAnswer(
@@ -139,8 +144,7 @@ async def submit_exam(exam_id: int, request: Request, db: Session = Depends(data
         )
         db.add(ans)
     
-    score = (correct_count / total_count * 100) if total_count > 0 else 0
-    sub.score = score
+    sub.score = total_score
     db.commit()
 
     return RedirectResponse(url="/student/dashboard", status_code=302)
@@ -202,3 +206,27 @@ async def log_cheat_flag(flag: CheatFlagRequest, db: Session = Depends(database.
         )
 
     return {"status": "logged"}
+
+@router.get("/notifications", response_class=HTMLResponse)
+def view_notifications(request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
+    now = datetime.datetime.now()
+    group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
+    group_ids = [gm.group_id for gm in group_memberships]
+    
+    exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
+    
+    alerts = []
+    
+    # Upcoming exams
+    for e in exams:
+        if now < e.start_time and e.start_time <= now + datetime.timedelta(days=7):
+            alerts.append({
+                "type": "exam",
+                "bg_color": "bg-primary",
+                "message": f"Upcoming Exam '{e.title}' starts conceptually soon",
+                "time": e.start_time.strftime('%b %d, %I:%M %p'),
+                "timestamp": e.start_time
+            })
+            
+    alerts.sort(key=lambda x: x["timestamp"])
+    return templates.TemplateResponse(request=request, name="teacher/notifications.html", context={"user": current_user, "alerts": alerts, "is_student": True})

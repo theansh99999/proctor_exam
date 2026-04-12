@@ -1,0 +1,62 @@
+<div class="card bg-transparent border border-secondary border-opacity-25 rounded-3" style="transition: all 0.2s ease;">
+    <div class="card-body p-3">
+        <div class="row align-items-center">
+            <!-- Student Profile -->
+            <div class="col-md-3 mb-3 mb-md-0 d-flex align-items-center">
+                <div class="{% if sub.score >= passing_marks %}bg-success{% else %}bg-danger{% endif %} text-white fs-5 fw-bold d-flex justify-content-center align-items-center rounded-circle me-3 shadow-sm" style="width: 45px; height: 45px; flex-shrink: 0;">
+                    {{ sub.student_name[0]|upper }}
+                </div>
+                <div>
+                    <a href="/teacher/exam/{{ exam.id }}/student/{{ sub.student_id }}/report"
+                       class="fw-bold mb-0 text-decoration-none text-body-emphasis"
+                       style="font-size: 1.05rem;">
+                        {{ sub.student_name }} <span class="text-primary" style="font-size:0.8rem;">↗</span>
+                    </a>
+                    <small class="{% if sub.score >= passing_marks %}text-success{% else %}text-danger{% endif %} fw-bold d-block">
+                        {% if sub.score >= passing_marks %}✅ Passed{% else %}❌ Failed{% endif %}
+                    </small>
+                </div>
+            </div>
+            
+            <!-- Core Score -->
+            <div class="col-md-2 mb-3 mb-md-0 text-md-center">
+                <span class="text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Score</span>
+                <span class="fw-bold fs-5 {% if sub.score >= passing_marks %}text-success{% else %}text-danger{% endif %}">
+                    {{ sub.score | round(2) }} / {{ total_possible | round(1) }}
+                </span>
+            </div>
+
+            <!-- Pass Status -->
+            <div class="col-md-2 mb-3 mb-md-0 text-md-center">
+                <span class="text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Result</span>
+                {% if passing_marks > 0 %}
+                    {% set pct = ((sub.score / total_possible) * 100) | round(1) if total_possible > 0 else 0 %}
+                    <span class="badge {% if sub.score >= passing_marks %}bg-success{% else %}bg-danger{% endif %} rounded-pill px-3 py-1 fw-bold">{{ pct }}%</span>
+                {% else %}
+                    <span class="badge bg-secondary rounded-pill px-3 py-1">N/A</span>
+                {% endif %}
+            </div>
+            
+            <!-- Integrity Status -->
+            <div class="col-md-2 mb-3 mb-md-0 text-md-center">
+                <span class="text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Integrity</span>
+                {% if sub.flag_count > 0 %}
+                <span class="badge bg-danger rounded-pill shadow-sm px-3 mt-1 py-1 fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i> {{ sub.flag_count }} Flag{{ 's' if sub.flag_count != 1 }}</span>
+                {% else %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-50 rounded-pill px-3 mt-1 py-1 fw-bold"><i class="bi bi-shield-check me-1"></i> Clean</span>
+                {% endif %}
+            </div>
+
+            <!-- Timestamp -->
+            <div class="col-md-1 mb-3 mb-md-0 text-md-center">
+                <span class="text-muted d-block" style="font-size: 0.70rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Time</span>
+                <span class="fw-medium text-body-emphasis d-block mt-1" style="font-size: 0.82rem;">{{ sub.submitted_at.strftime('%I:%M %p') }}<br><small class="text-muted">{{ sub.submitted_at.strftime('%b %d') }}</small></span>
+            </div>
+            
+            <!-- Action -->
+            <div class="col-md-2 text-md-end text-center d-flex align-items-center justify-content-end">
+                <a href="/teacher/exam/{{ exam.id }}/student/{{ sub.student_id }}/flags" class="btn {% if sub.flag_count > 0 %}btn-danger{% else %}btn-outline-primary{% endif %} fw-bold shadow-sm px-3 border-2" style="border-radius: 10px; font-size: 0.85rem;">Audit Log</a>
+            </div>
+        </div>
+    </div>
+</div>

@@ -48,6 +48,7 @@ class Exam(Base):
     timer_type = Column(String, default="overall") # "overall" or "per_question"
     default_marks = Column(Float, default=1.0)
     default_negative_marks = Column(Float, default=0.0)
+    passing_marks = Column(Float, default=0.0)
 
     group = relationship("Group", back_populates="exams")
     questions = relationship("Question", back_populates="exam", cascade="all, delete-orphan")
@@ -110,6 +111,7 @@ class CheatFlag(Base):
     student_id = Column(Integer, ForeignKey("users.id"))
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
     description = Column(String)
+    is_resolved = Column(Boolean, default=False)
 
     exam = relationship("Exam", backref="cheat_flags")
     student = relationship("User", backref="cheat_flags")

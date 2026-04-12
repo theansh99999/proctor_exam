@@ -65,6 +65,13 @@ def register_submit(
     db.commit()
     return RedirectResponse(url="/login?msg=Registered successfully", status_code=status.HTTP_302_FOUND)
 
+@router.get("/dashboard")
+def redirect_dashboard(current_user: models.User = Depends(auth.require_auth)):
+    if current_user.role == "teacher":
+        return RedirectResponse(url="/teacher/dashboard", status_code=status.HTTP_302_FOUND)
+    else:
+        return RedirectResponse(url="/student/dashboard", status_code=status.HTTP_302_FOUND)
+
 @router.get("/logout")
 def logout():
     res = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)

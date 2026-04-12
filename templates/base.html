@@ -25,7 +25,7 @@
     {% if not hide_nav %}
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container">
-            <a class="navbar-brand" href="#">ExamProctor</a>
+            <a class="navbar-brand" href="/dashboard">ExamProctor</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -36,9 +36,12 @@
                         <li class="nav-item dropdown me-1 me-lg-3 d-flex align-items-center">
                             <a class="nav-link text-light position-relative d-flex align-items-center" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 1.3rem;">
                                 🔔
-                                {% if upcoming_count and upcoming_count > 0 %}
+                                {% set notif_count = 0 %}
+                                {% if upcoming_count %}{% set notif_count = notif_count + upcoming_count %}{% endif %}
+                                {% if recent_alerts %}{% set notif_count = notif_count + recent_alerts|length %}{% endif %}
+                                {% if notif_count > 0 %}
                                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size: 0.60rem; padding: 0.25em 0.5em;">
-                                    {{ upcoming_count }}
+                                    {{ notif_count }}
                                 </span>
                                 {% endif %}
                             </a>
@@ -46,22 +49,42 @@
                                 <div class="p-3 border-bottom" style="background-color: var(--surface-color);">
                                     <h6 class="mb-0 fw-bold" style="color: var(--text-color);">Notifications</h6>
                                 </div>
-                                {% if upcoming_exams and upcoming_exams|length > 0 %}
-                                    {% for exam in upcoming_exams %}
-                                    <li>
-                                        <a class="dropdown-item py-3 border-bottom text-wrap" href="#">
-                                            <div class="d-flex align-items-start">
-                                                <span class="fs-4 me-3">📅</span>
-                                                <div>
-                                                    <p class="mb-1 fw-bold fs-6" style="color: var(--text-color);">{{ exam.title }} Reminder</p>
-                                                    <p class="mb-0 text-muted small">Scheduled for: {{ exam.start_time.strftime('%b %d, %I:%M %p') }}</p>
+                                {% if (upcoming_exams and upcoming_exams|length > 0) or (recent_alerts and recent_alerts|length > 0) %}
+                                    {% if upcoming_exams %}
+                                        {% for exam in upcoming_exams %}
+                                        <li>
+                                            <a class="dropdown-item py-3 border-bottom text-wrap" href="#">
+                                                <div class="d-flex align-items-start">
+                                                    <span class="fs-4 me-3">📅</span>
+                                                    <div>
+                                                        <p class="mb-1 fw-bold fs-6" style="color: var(--text-color);">{{ exam.title }} Reminder</p>
+                                                        <p class="mb-0 text-muted small">Scheduled for: {{ exam.start_time.strftime('%b %d, %I:%M %p') }}</p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </a>
-                                    </li>
-                                    {% endfor %}
+                                            </a>
+                                        </li>
+                                        {% endfor %}
+                                    {% endif %}
+                                    
+                                    {% if recent_alerts %}
+                                        {% for alert in recent_alerts %}
+                                        <li>
+                                            <a class="dropdown-item py-3 border-bottom text-wrap" href="#">
+                                                <div class="d-flex align-items-start border-start border-3 ps-3 border-{% if alert.bg_color == 'bg-danger' %}danger{% else %}primary{% endif %} position-relative py-1">
+                                                    <div class="flex-grow-1">
+                                                        <p class="mb-1 fw-bold text-body-emphasis" style="font-size: 0.90rem; line-height: 1.4;">
+                                                            {% if alert.bg_color == 'bg-danger' %}<span class="text-danger me-1">⚠️</span>{% else %}<span class="text-primary me-1">📅</span>{% endif %}
+                                                            {{ alert.message }}
+                                                        </p>
+                                                        <small class="text-muted fw-bold text-uppercase" style="font-size: 0.70rem; letter-spacing: 0.5px;">{{ alert.time }}</small>
+                                                    </div>
+                                                </div>
+                                            </a>
+                                        </li>
+                                        {% endfor %}
+                                    {% endif %}
                                     <div class="p-2 text-center">
-                                        <a href="#" class="text-decoration-none small text-primary fw-bold">View all reminders</a>
+                                        <a href="{% if user.role == 'teacher' %}/teacher/notifications{% else %}/student/notifications{% endif %}" class="text-decoration-none small text-primary fw-bold">View all notifications</a>
                                     </div>
                                 {% else %}
                                     <div class="p-5 text-center">

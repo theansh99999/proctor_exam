@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <a href="/teacher/exam/{{ exam.id }}/submissions" class="text-decoration-none">&larr; Back to Submissions</a>
+    <a href="/teacher/exam/{{ exam.id }}/student/{{ student.id }}/flags" class="btn btn-outline-danger btn-sm fw-bold rounded-pill px-3">⚠️ Audit Log</a>
+</div>
+
+<!-- Header Card -->
+<div class="card glass-card border-0 shadow-sm mb-4 p-4">
+    <div class="row align-items-center">
+        <div class="col-md-6 d-flex align-items-center gap-3 mb-3 mb-md-0">
+            <div class="{% if submission.score >= passing_marks %}bg-success{% else %}bg-danger{% endif %} text-white fw-bold fs-3 d-flex justify-content-center align-items-center rounded-circle shadow"
+                 style="width: 60px; height: 60px; flex-shrink: 0;">
+                {{ student.name[0]|upper }}
+            </div>
+            <div>
+                <h3 class="fw-bold mb-0">{{ student.name }}</h3>
+                <p class="text-muted mb-0 small">{{ student.email }}</p>
+                <span class="badge {% if submission.score >= passing_marks %}bg-success{% else %}bg-danger{% endif %} mt-1 px-3 py-1 rounded-pill fw-bold">
+                    {% if submission.score >= passing_marks %}✅ Passed{% else %}❌ Failed{% endif %}
+                </span>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="row g-2 text-center">
+                <div class="col-4">
+                    <div class="p-2 rounded-3 border border-secondary border-opacity-25" style="background: var(--surface-color);">
+                        <div class="fw-bold fs-4 {% if submission.score >= passing_marks %}text-success{% else %}text-danger{% endif %}">
+                            {{ submission.score | round(2) }}
+                        </div>
+                        <div class="text-muted" style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.5px;">Score</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-2 rounded-3 border border-secondary border-opacity-25" style="background: var(--surface-color);">
+                        <div class="fw-bold fs-4 text-primary">{{ total_possible | round(1) }}</div>
+                        <div class="text-muted" style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.5px;">Total</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-2 rounded-3 border border-secondary border-opacity-25" style="background: var(--surface-color);">
+                        <div class="fw-bold fs-4 text-warning">{{ passing_marks | round(1) }}</div>
+                        <div class="text-muted" style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.5px;">Pass Mark</div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-2">
+                {% if total_possible > 0 %}
+                {% set pct = ((submission.score / total_possible) * 100) | round(1) %}
+                {% set pass_pct = ((passing_marks / total_possible) * 100) | round(1) %}
+                <div class="d-flex justify-content-between small text-muted mb-1">
+                    <span>{{ pct }}% scored</span>
+                    <span>Pass at {{ pass_pct }}%</span>
+                </div>
+                <div class="progress" style="height: 8px; border-radius: 8px;">
+                    <div class="progress-bar {% if submission.score >= passing_marks %}bg-success{% else %}bg-danger{% endif %}"
+                         style="width: {{ [pct, 100]|min }}%"></div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Answer Sheet -->
+<div class="card glass-card border-0 shadow-sm mb-5">
+    <div class="card-body p-4">
+        <h4 class="fw-bold mb-4">📄 Answer Sheet — {{ exam.title }}</h4>
+        <div class="d-flex flex-column gap-3">
+            {% for row in report_rows %}
+            <div class="rounded-3 border p-4
+                {% if row.skipped %}border-secondary border-opacity-25{% elif row.is_correct %}border-success border-opacity-50{% else %}border-danger border-opacity-50{% endif %}"
+                 style="background: {% if row.skipped %}transparent{% elif row.is_correct %}rgba(34,197,94,0.05){% else %}rgba(239,68,68,0.05){% endif %}">
+
+                <!-- Question Header -->
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                    <div class="d-flex align-items-start gap-2">
+                        <span class="badge bg-secondary rounded-pill mt-1">Q{{ row.num }}</span>
+                        <p class="fw-bold mb-0" style="font-size: 1rem;">{{ row.text }}</p>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        {% if row.skipped %}
+                        <span class="badge bg-secondary rounded-pill px-3">⏭ Skipped</span>
+                        {% elif row.is_correct %}
+                        <span class="badge bg-success rounded-pill px-3">✅ +{{ row.marks }}</span>
+                        {% else %}
+                        <span class="badge bg-danger rounded-pill px-3">❌ Wrong</span>
+                        {% endif %}
+                        <span class="badge bg-primary bg-opacity-20 text-primary rounded-pill">{{ row.marks }} marks</span>
+                    </div>
+                </div>
+
+                <!-- Options -->
+                <div class="d-flex flex-column gap-2 ms-2">
+                    {% for opt in row.options %}
+                    {% set is_selected = row.selected_option and row.selected_option.id == opt.id %}
+                    {% set is_correct = opt.is_correct %}
+                    <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-3
+                        {% if is_correct and is_selected %}border border-success border-opacity-75{% elif is_correct %}border border-success border-opacity-40{% elif is_selected and not is_correct %}border border-danger border-opacity-75{% else %}border border-secondary border-opacity-15{% endif %}"
+                         style="background: {% if is_correct and is_selected %}rgba(34,197,94,0.12){% elif is_correct %}rgba(34,197,94,0.06){% elif is_selected %}rgba(239,68,68,0.1){% else %}transparent{% endif %}">
+
+                        <!-- indicator -->
+                        <div class="fw-bold d-flex align-items-center justify-content-center rounded-circle"
+                             style="width:28px; height:28px; flex-shrink:0; font-size:0.85rem;
+                                    background: {% if is_correct %}rgba(34,197,94,0.2){% elif is_selected %}rgba(239,68,68,0.2){% else %}rgba(128,128,128,0.15){% endif %};
+                                    color: {% if is_correct %}#22c55e{% elif is_selected %}#ef4444{% else %}var(--text-color){% endif %};">
+                            {% if is_correct %}✔{% elif is_selected %}✘{% else %}○{% endif %}
+                        </div>
+
+                        <span class="fw-medium {% if is_correct %}text-success{% elif is_selected %}text-danger{% else %}text-muted{% endif %}">
+                            {{ opt.text }}
+                        </span>
+
+                        {% if is_selected and not is_correct %}
+                        <span class="badge bg-danger bg-opacity-20 text-danger ms-auto" style="font-size:0.7rem;">Your Answer</span>
+                        {% elif is_correct and is_selected %}
+                        <span class="badge bg-success bg-opacity-20 text-success ms-auto" style="font-size:0.7rem;">✔ Your Correct Answer</span>
+                        {% elif is_correct %}
+                        <span class="badge bg-success bg-opacity-20 text-success ms-auto" style="font-size:0.7rem;">Correct Answer</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
