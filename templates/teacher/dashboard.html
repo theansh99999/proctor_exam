@@ -82,7 +82,7 @@
                                 <small class="text-muted text-uppercase fw-bold" style="font-size: 0.70rem; letter-spacing: 0.5px;">Total Flags Captured</small>
                             </div>
                         </div>
-                        <a href="/teacher/exam/{{ item.exam.id }}/monitor" class="btn btn-danger w-100 fw-bold shadow border-2 border-danger" onclick="alert('Accessing Live Sub-Network Feed Engine...'); return false;" style="transition: transform 0.2s;">
+                        <a href="/teacher/exam/{{ item.exam.id }}/monitor" class="btn btn-danger w-100 fw-bold shadow border-2 border-danger" style="transition: transform 0.2s;">
                             📡 Connect to Live Feed
                         </a>
                     </div>
@@ -254,7 +254,7 @@
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-2" style="border-radius: 12px; overflow: hidden; background-color: var(--surface-color);">
                                             {% if now >= exam.start_time and now <= exam.end_time %}
-                                                <li><a class="dropdown-item fw-bold text-danger py-2" href="#" onclick="alert('Live Proctoring Feed Engine Commencing!'); return false;">📡 Monitor Live</a></li>
+                                                <li><a class="dropdown-item fw-bold text-danger py-2" href="/teacher/exam/{{ exam.id }}/monitor">📡 Monitor Live</a></li>
                                             {% endif %}
                                             <li><a class="dropdown-item fw-bold text-primary py-2" href="/teacher/exam/{{ exam.id }}/submissions">📊 View Results</a></li>
                                             <li><hr class="dropdown-divider m-0 border-secondary opacity-25"></li>
@@ -352,12 +352,24 @@
 
     ws.onmessage = function(event) {
         const data = JSON.parse(event.data);
-        const alertMsg = `⚠️ ${data.student_name} triggered a violation in '${data.exam_title}': ${data.description}`;
         
-        document.getElementById('toastMessage').innerText = alertMsg;
-        const toastEl = document.getElementById('cheatToast');
-        const toast = new bootstrap.Toast(toastEl, { delay: 15000 });
-        toast.show();
+        if(data.type === 'live_submission') {
+            // General Toast Alert for Dashboard
+            const alertMsg = `✅ ${data.student_name} just submitted exam! Score: ${data.score}`;
+            document.getElementById('toastMessage').innerText = alertMsg;
+            const toastEl = document.getElementById('cheatToast');
+            toastEl.classList.replace('bg-danger', 'bg-success'); 
+            const toast = new bootstrap.Toast(toastEl, { delay: 5000 });
+            toast.show();
+        } else {
+            // Cheat Alert Logic
+            const alertMsg = `⚠️ ${data.student_name} triggered a violation in '${data.exam_title}': ${data.description}`;
+            document.getElementById('toastMessage').innerText = alertMsg;
+            const toastEl = document.getElementById('cheatToast');
+            toastEl.classList.replace('bg-success', 'bg-danger'); 
+            const toast = new bootstrap.Toast(toastEl, { delay: 15000 });
+            toast.show();
+        }
     };
 
     ws.onclose = function(event) {

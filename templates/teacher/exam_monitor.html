@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="/teacher/dashboard" class="btn btn-sm btn-outline-secondary mb-3 border-2"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
+        <h2 class="fw-bold text-body-emphasis mb-1">📡 Live Monitor: {{ exam.title }}</h2>
+        <p class="text-muted fw-medium mb-0">Group ID: {{ exam.group_id }} &bull; Ends at {{ exam.end_time.strftime('%I:%M %p') }}</p>
+    </div>
+    <div>
+        <span class="badge bg-danger pulse-badge rounded-pill px-4 py-2 fs-6 shadow-sm"><i class="bi bi-record-circle me-1"></i> LIVE NOW</span>
+    </div>
+</div>
+
+<!-- Top Stats Row -->
+<div class="row mb-5">
+    <div class="col-md-3">
+        <div class="card glass-card border-0 shadow-sm h-100 p-4" style="border-bottom: 4px solid #f59e0b !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2">Target Students</h6>
+            <h1 class="display-5 fw-bold mb-0 text-warning">{{ assigned_count }}</h1>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card glass-card border-0 shadow-sm h-100 p-4" style="border-bottom: 4px solid #4f46e5 !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2">Submitted</h6>
+            <h1 class="display-5 fw-bold mb-0" style="color: #4f46e5;" id="live_total_subs">{{ total_subs }}</h1>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card glass-card border-0 shadow-sm h-100 p-4" style="border-bottom: 4px solid #10b981 !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2">Passed so far</h6>
+            <h1 class="display-5 fw-bold mb-0 text-success" id="live_pass">{{ pass_count }}</h1>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card glass-card border-0 shadow-sm h-100 p-4" style="border-bottom: 4px solid #ef4444 !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2">Failed so far</h6>
+            <h1 class="display-5 fw-bold mb-0 text-danger" id="live_fail">{{ fail_count }}</h1>
+        </div>
+    </div>
+</div>
+
+<!-- Main Table Area -->
+<div class="card glass-card border-0 shadow-sm mb-5">
+    <div class="card-body p-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="fw-bold mb-0">Incoming Submissions</h4>
+                <p class="text-muted small mb-0 mt-1">This list updates in real-time instantly without refreshing.</p>
+            </div>
+            <button class="btn btn-outline-primary fw-bold px-4 py-2 border-2 rounded-pill shadow-sm" onclick="sortLiveTable()">Sort by Marks <i class="bi bi-arrow-down-up"></i></button>
+        </div>
+
+        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+            <table class="table table-hover align-middle mb-0" id="live_table">
+                <thead style="position: sticky; top: 0; background-color: var(--surface-color); z-index: 1;">
+                    <tr class="text-muted" style="font-size: 0.9rem; text-transform: uppercase;">
+                        <th class="py-3">Student Name</th>
+                        <th class="py-3">Score Achieved</th>
+                        <th class="py-3">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in live_submissions %}
+                    <tr>
+                        <td class="fw-bold py-3 fs-5">{{ sub.name }}</td>
+                        <td class="fw-bold py-3 fs-5 score-col" data-score="{{ sub.score }}">{{ sub.score }}</td>
+                        <td class="py-3">
+                            {% if sub.passed %}
+                            <span class="badge bg-success bg-opacity-25 text-success border border-success px-3 py-2 fs-6 rounded-pill">Passed</span>
+                            {% else %}
+                            <span class="badge bg-danger bg-opacity-25 text-danger border border-danger px-3 py-2 fs-6 rounded-pill">Failed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr id="no_subs">
+                        <td colspan="3" class="text-center text-muted py-5">
+                            <span class="fs-1 opacity-50 d-block mb-3">⏳</span>
+                            <h5 class="fw-medium mb-0">Waiting for live data...</h5>
+                            <p class="small">As students submit, their results will appear here magically.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
+  <div id="liveToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body fw-medium" id="toastMessage">Alert!</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const examId = {{ exam.id }};
+    const wsUrl = `ws://${window.location.host}/ws/teacher/{{ user.id }}`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'live_submission' && data.exam_id === examId) {
+            // Update Totals
+            const totalSubsEl = document.getElementById(`live_total_subs`);
+            if (totalSubsEl) totalSubsEl.innerText = parseInt(totalSubsEl.innerText) + 1;
+            
+            if (data.passed) {
+                const passEl = document.getElementById(`live_pass`);
+                if (passEl) passEl.innerText = parseInt(passEl.innerText) + 1;
+            } else {
+                const failEl = document.getElementById(`live_fail`);
+                if (failEl) failEl.innerText = parseInt(failEl.innerText) + 1;
+            }
+            
+            // Update Table
+            const noSubsTr = document.getElementById(`no_subs`);
+            if (noSubsTr) noSubsTr.remove();
+            
+            const tbody = document.querySelector(`#live_table tbody`);
+            if (tbody) {
+                const tr = document.createElement('tr');
+                tr.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'; 
+                tr.style.transition = 'background-color 2s ease';
+                tr.innerHTML = `
+                    <td class="fw-bold py-3 fs-5">${data.student_name} <span class="badge bg-primary text-white ms-2 shadow-sm rounded-pill" style="font-size: 0.6em; vertical-align: middle;">NEW UPDATE</span></td>
+                    <td class="fw-bold py-3 fs-5 score-col" data-score="${data.score}">${data.score}</td>
+                    <td class="py-3">
+                        <span class="badge ${data.passed ? 'bg-success text-success border-success' : 'bg-danger text-danger border-danger'} bg-opacity-25 border px-3 py-2 fs-6 rounded-pill">
+                            ${data.passed ? 'Passed' : 'Failed'}
+                        </span>
+                    </td>
+                `;
+                tbody.prepend(tr); 
+                
+                // Fade out background slightly after insert
+                setTimeout(() => {
+                    tr.style.backgroundColor = 'transparent';
+                }, 2000);
+            }
+
+            // Toast
+            const alertMsg = `🎉 ${data.student_name} just successfully submitted! Score: ${data.score}`;
+            document.getElementById('toastMessage').innerText = alertMsg;
+            const toastEl = document.getElementById('liveToast');
+            const toast = new bootstrap.Toast(toastEl, { delay: 6000 });
+            toast.show();
+        }
+    };
+
+    ws.onclose = function(event) {
+        console.warn("WebSocket Connection Closed");
+    };
+
+    // Table Sorting
+    function sortLiveTable() {
+        const table = document.getElementById(`live_table`);
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        if(rows.length === 0 || (rows.length === 1 && rows[0].id === 'no_subs')) return;
+
+        const currentOrder = table.getAttribute('data-sort') || 'desc';
+        const newOrder = currentOrder === 'desc' ? 'asc' : 'desc';
+        table.setAttribute('data-sort', newOrder);
+
+        rows.sort((a, b) => {
+            const scoreA = parseFloat(a.querySelector('.score-col').getAttribute('data-score'));
+            const scoreB = parseFloat(b.querySelector('.score-col').getAttribute('data-score'));
+            return newOrder === 'desc' ? scoreB - scoreA : scoreA - scoreB;
+        });
+
+        rows.forEach(row => tbody.appendChild(row));
+    }
+</script>
+{% endblock %}

@@ -40,6 +40,7 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
         if e.start_time <= now <= e.end_time:
             assigned_count = db.query(models.GroupMember).filter(models.GroupMember.group_id == e.group_id).count()
             violation_count = db.query(models.CheatFlag).filter(models.CheatFlag.exam_id == e.id).count()
+            
             active_exams_data.append({
                 "exam": e,
                 "assigned_count": assigned_count,
@@ -590,3 +591,36 @@ def api_edit_exam(
 
     db.commit()
     return {"status": "success"}
+
+@router.get("/exam/{exam_id}/monitor", response_class=HTMLResponse)
+def monitor_exam_live(exam_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_teacher)):
+    exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+    if not exam or exam.group.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized or Exam not found")
+        
+    assigned_count = db.query(models.GroupMember).filter(models.GroupMember.group_id == exam.group_id).count()
+    e_subs = db.query(models.Submission).filter(models.Submission.exam_id == exam_id).all()
+    passing_marks = exam.passing_marks or 0
+    live_submissions = []
+    pass_c = 0
+    
+    for sub in e_subs:
+        if sub.score >= passing_marks:
+            pass_c += 1
+        live_submissions.append({
+            "name": sub.student.name,
+            "score": round(sub.score, 2),
+            "passed": sub.score >= passing_marks
+        })
+        
+    live_submissions.sort(key=lambda x: x["score"], reverse=True)
+    
+    return templates.TemplateResponse(request=request, name="teacher/exam_monitor.html", context={
+        "user": current_user,
+        "exam": exam,
+        "assigned_count": assigned_count,
+        "total_subs": len(e_subs),
+        "pass_count": pass_c,
+        "fail_count": len(e_subs) - pass_c,
+        "live_submissions": live_submissions
+    })

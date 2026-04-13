@@ -146,6 +146,19 @@ async def submit_exam(exam_id: int, request: Request, db: Session = Depends(data
     
     sub.score = total_score
     db.commit()
+    
+    # Broadcast to Teacher
+    from ws_manager import manager
+    if exam and exam.group:
+        teacher_id = exam.group.teacher_id
+        passing_marks = exam.passing_marks or 0
+        await manager.send_personal_message({
+            "type": "live_submission",
+            "exam_id": exam.id,
+            "student_name": current_user.name,
+            "score": round(sub.score, 2),
+            "passed": sub.score >= passing_marks
+        }, teacher_id)
 
     return RedirectResponse(url="/student/dashboard", status_code=302)
 
