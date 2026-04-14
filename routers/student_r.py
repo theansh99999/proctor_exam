@@ -47,15 +47,19 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     line_labels = json.dumps([sub.submitted_at.strftime('%b %d') for sub in sorted_subs])
     line_data = json.dumps([sub.score for sub in sorted_subs])
     
-    # Pie Chart Data (By Group Name)
-    group_scores = defaultdict(list)
+    # Pie Chart Data (Pass vs Fail)
+    pass_count = 0
+    fail_count = 0
     for sub in completed_submissions.values():
         exam = db.query(models.Exam).filter(models.Exam.id == sub.exam_id).first()
-        if exam and exam.group:
-            group_scores[exam.group.name].append(sub.score)
+        passing_marks = exam.passing_marks if exam and exam.passing_marks else 0.0
+        if sub.score >= passing_marks:
+            pass_count += 1
+        else:
+            fail_count += 1
             
-    pie_labels = json.dumps(list(group_scores.keys()))
-    pie_data = json.dumps([round(sum(scores)/len(scores), 2) for scores in group_scores.values()])
+    pie_labels = json.dumps(["Passed", "Failed"])
+    pie_data = json.dumps([pass_count, fail_count])
 
     return templates.TemplateResponse(request=request, name="student/dashboard.html", context={
         "user": current_user,
