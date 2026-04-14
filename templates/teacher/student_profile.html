@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4 d-flex align-items-center gap-3">
+    <a href="/teacher/dashboard" class="btn btn-outline-secondary border border-secondary border-opacity-25 fw-bold rounded-pill px-3 py-2 shadow-sm">
+        ← Back to Dashboard
+    </a>
+    <div>
+        <h3 class="fw-bold mb-0" style="color: var(--text-color);">🧑‍🎓 {{ student.name }}</h3>
+        <p class="text-muted mb-0 small fw-medium">{{ student.email }}</p>
+    </div>
+</div>
+
+<!-- Stat Cards -->
+<div class="row mb-4 g-3">
+    <div class="col-md-3">
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-bottom: 4px solid #4f46e5 !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.8rem; letter-spacing: 0.5px;">Tests Assigned</h6>
+            <h2 class="fw-bold mb-0" style="color: #4f46e5 !important;">{{ tests_assigned }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-bottom: 4px solid #10b981 !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.8rem; letter-spacing: 0.5px;">Completed</h6>
+            <h2 class="fw-bold mb-0 text-success" style="color: #10b981 !important;">{{ tests_taken }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-bottom: 4px solid #ef4444 !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.8rem; letter-spacing: 0.5px;">Missed</h6>
+            <h2 class="fw-bold mb-0 {% if tests_missed > 0 %}text-danger{% else %}text-muted{% endif %}">{{ tests_missed }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-bottom: 4px solid #f59e0b !important;">
+            <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.8rem; letter-spacing: 0.5px;">Overall Score</h6>
+            <h2 class="fw-bold mb-0 text-warning" style="color: #f59e0b !important; font-size: 1.4rem;">
+                {{ total_score }} <span class="fs-6 fw-normal text-muted">/ {{ total_possible_score }}</span>
+            </h2>
+        </div>
+    </div>
+</div>
+
+<!-- Exam Table -->
+<div class="card glass-card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-bottom border-secondary border-opacity-10 p-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div>
+                <h5 class="fw-bold mb-0">Exam-wise Breakdown</h5>
+                <p class="text-muted small mb-0 mt-1">Check individual exam scores, statuses and answers.</p>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <!-- Search -->
+                <input type="text" id="examSearchInput" class="form-control bg-body-tertiary border-secondary border-opacity-25 shadow-none" placeholder="🔍 Search exam..." oninput="applyFilters()" style="min-width: 180px; max-width: 220px;">
+                <!-- Status Filter -->
+                <select id="statusFilter" class="form-select bg-body-tertiary border-secondary border-opacity-25 shadow-none fw-medium" onchange="applyFilters()" style="min-width: 140px;">
+                    <option value="all">All Status</option>
+                    <option value="taken">✅ Completed</option>
+                    <option value="missed">❌ Missed</option>
+                    <option value="pending">⏳ Pending</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" style="color: var(--text-color);">
+                <thead class="bg-body-tertiary border-bottom border-secondary border-opacity-25 text-muted small fw-bold text-uppercase">
+                    <tr>
+                        <th class="py-3 px-4 border-0">Exam Title</th>
+                        <th class="py-3 px-4 border-0">Status</th>
+                        <th class="py-3 px-4 border-0">Questions</th>
+                        <th class="py-3 px-4 border-0">Score (Obtained / Total)</th>
+                        <th class="py-3 px-4 border-0">Exam Ended</th>
+                        <th class="py-3 px-4 border-0 text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="examTableBody">
+                    {% for detail in exam_details %}
+                    <tr class="exam-row" data-title="{{ detail.exam.title|lower }}" data-status="{{ detail.status }}">
+                        <td class="py-3 px-4 border-bottom border-secondary border-opacity-10">
+                            <span class="fw-bold">{{ detail.exam.title }}</span>
+                            <br><small class="text-muted">{{ detail.exam.duration_minutes }} min</small>
+                        </td>
+                        <td class="py-3 px-4 border-bottom border-secondary border-opacity-10">
+                            {% if detail.status == "taken" %}
+                                <span class="badge bg-success bg-opacity-25 text-success border border-success px-2 py-1 fw-bold">✅ Completed</span>
+                            {% elif detail.status == "pending" %}
+                                <span class="badge bg-warning bg-opacity-25 text-warning border border-warning px-2 py-1 fw-bold">⏳ Pending</span>
+                            {% else %}
+                                <span class="badge bg-danger bg-opacity-25 text-danger border border-danger px-2 py-1 fw-bold">❌ Missed</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 border-bottom border-secondary border-opacity-10 fw-medium">
+                            {{ detail.questions_count }}
+                        </td>
+                        <td class="py-3 px-4 border-bottom border-secondary border-opacity-10">
+                            {% if detail.status == "taken" %}
+                                <span class="fw-bold fs-6 {% if detail.obtained_marks >= (detail.exam.passing_marks or 0) %}text-success{% else %}text-danger{% endif %}">
+                                    {{ detail.obtained_marks }}
+                                </span>
+                                <span class="text-muted fw-bold"> / {{ detail.max_marks }}</span>
+                            {% else %}
+                                <span class="text-muted opacity-50">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 border-bottom border-secondary border-opacity-10 text-muted small fw-medium">
+                            {{ detail.exam.end_time.strftime('%b %d, %I:%M %p') }}
+                        </td>
+                        <td class="py-3 px-4 border-bottom border-secondary border-opacity-10 text-end">
+                            {% if detail.status == "taken" %}
+                                <a href="/teacher/exam/{{ detail.exam.id }}/student/{{ student.id }}/report"
+                                   class="btn btn-sm btn-primary-custom fw-bold shadow-sm px-3 py-2" target="_blank">
+                                    📑 View Answers
+                                </a>
+                            {% else %}
+                                <span class="btn btn-sm btn-light border fw-bold text-muted px-3 py-2 opacity-50 disabled">
+                                    Unavailable
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr id="emptyRow">
+                        <td colspan="6" class="text-center py-5">
+                            <span class="fs-1 opacity-50 d-block mb-3">📭</span>
+                            <h6 class="fw-bold text-muted mb-0">No exams assigned to this student yet.</h6>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- No results row (for search/filter) -->
+        <div id="noResultsRow" class="text-center py-5 d-none">
+            <span class="fs-1 opacity-50 d-block mb-3">🔍</span>
+            <h6 class="fw-bold text-muted mb-0">No exams match your search or filter.</h6>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function applyFilters() {
+        const searchVal = document.getElementById('examSearchInput').value.toLowerCase().trim();
+        const statusVal = document.getElementById('statusFilter').value;
+        const rows = document.querySelectorAll('#examTableBody .exam-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const title = row.getAttribute('data-title') || '';
+            const status = row.getAttribute('data-status') || '';
+            const matchSearch = title.includes(searchVal);
+            const matchStatus = (statusVal === 'all') || (status === statusVal);
+
+            if (matchSearch && matchStatus) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        const noResults = document.getElementById('noResultsRow');
+        if (noResults) {
+            noResults.classList.toggle('d-none', visibleCount > 0 || rows.length === 0);
+        }
+    }
+</script>
+{% endblock %}

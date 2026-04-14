@@ -247,6 +247,102 @@ def delete_student(
     return RedirectResponse(url="/teacher/dashboard", status_code=302)
 
 
+@router.get("/student/{student_id}/profile", response_class=HTMLResponse)
+def view_student_profile(
+    request: Request,
+    student_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.require_teacher)
+):
+    student = db.query(models.User).filter(models.User.id == student_id, models.User.role == "student").first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    teacher_groups = db.query(models.Group).filter(models.Group.teacher_id == current_user.id).all()
+    teacher_group_ids = [g.id for g in teacher_groups] if teacher_groups else []
+    
+    student_group_ids = []
+    if teacher_group_ids:
+        memberships = db.query(models.GroupMember).filter(
+            models.GroupMember.student_email == student.email,
+            models.GroupMember.group_id.in_(teacher_group_ids)
+        ).all()
+        student_group_ids = [m.group_id for m in memberships]
+    
+    assigned_exams = []
+    if student_group_ids:
+        assigned_exams = db.query(models.Exam).filter(models.Exam.group_id.in_(student_group_ids)).order_by(models.Exam.start_time.desc()).all()
+    
+    submissions = []
+    if assigned_exams:
+        exam_ids = [e.id for e in assigned_exams]
+        submissions = db.query(models.Submission).filter(
+            models.Submission.student_id == student_id,
+            models.Submission.exam_id.in_(exam_ids)
+        ).all()
+        
+    sub_map = {s.exam_id: s for s in submissions}
+    now = datetime.datetime.now()
+    
+    exam_details = []
+    tests_taken = 0
+    tests_missed = 0
+    tests_pending = 0
+    total_score = 0
+    total_possible_score = 0
+    
+    for exam in assigned_exams:
+        sub = sub_map.get(exam.id)
+        questions = db.query(models.Question).filter(models.Question.exam_id == exam.id).all()
+        exam_max_marks = sum((q.marks if q.marks is not None else exam.default_marks) for q in questions)
+        
+        # Build a marks-per-question lookup
+        q_marks_map = {q.id: (q.marks if q.marks is not None else exam.default_marks) for q in questions}
+        
+        status = "pending"
+        obtained_marks = 0.0
+        if sub:
+            status = "taken"
+            tests_taken += 1
+            # Recalculate actual obtained marks from StudentAnswer records
+            answers = db.query(models.StudentAnswer).filter(models.StudentAnswer.submission_id == sub.id).all()
+            for ans in answers:
+                if ans.is_correct:
+                    obtained_marks += q_marks_map.get(ans.question_id, exam.default_marks)
+                elif ans.selected_option_id is not None:
+                    neg = questions[0].negative_marks if questions else None
+                    neg_marks = neg if neg is not None else exam.default_negative_marks
+                    obtained_marks -= neg_marks
+            obtained_marks = max(obtained_marks, 0.0)  # floor at 0
+            total_score += obtained_marks
+            total_possible_score += exam_max_marks
+        elif now > exam.end_time:
+            status = "missed"
+            tests_missed += 1
+        else:
+            tests_pending += 1
+            
+        exam_details.append({
+            "exam": exam,
+            "submission": sub,
+            "status": status,
+            "max_marks": round(exam_max_marks, 2),
+            "questions_count": len(questions),
+            "obtained_marks": round(obtained_marks, 2)
+        })
+        
+    return templates.TemplateResponse(request=request, name="teacher/student_profile.html", context={
+        "user": current_user,
+        "student": student,
+        "exam_details": exam_details,
+        "tests_assigned": len(assigned_exams),
+        "tests_taken": tests_taken,
+        "tests_missed": tests_missed,
+        "tests_pending": tests_pending,
+        "total_score": round(total_score, 2),
+        "total_possible_score": round(total_possible_score, 2)
+    })
+
 @router.get("/group/{group_id}", response_class=HTMLResponse)
 def view_group(group_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_teacher)):
     group = db.query(models.Group).filter(models.Group.id == group_id, models.Group.teacher_id == current_user.id).first()
