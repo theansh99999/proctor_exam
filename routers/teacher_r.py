@@ -91,9 +91,8 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
             })
         
     recent_alerts.sort(key=lambda x: x["timestamp"], reverse=True)
-    recent_alerts = recent_alerts[:5]
+    all_students = db.query(models.User).filter(models.User.role == "student").order_by(models.User.id.desc()).all()
 
-    
     return templates.TemplateResponse(request=request, name="teacher/dashboard.html", context={
         "user": current_user, 
         "groups": groups,
@@ -110,7 +109,8 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
         "exam_averages": exam_averages,
         "top_performers": top_performers,
         "low_scorers": low_scorers,
-        "recent_alerts": recent_alerts
+        "recent_alerts": recent_alerts,
+        "all_students": all_students
     })
 
 @router.post("/create_group")
@@ -179,6 +179,73 @@ def delete_exam(exam_id: int, db: Session = Depends(database.get_db), current_us
     db.delete(exam)
     db.commit()
     return RedirectResponse(url="/teacher/dashboard", status_code=302)
+
+@router.post("/student/create")
+def create_student(
+    name: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.require_teacher)
+):
+    existing = db.query(models.User).filter(models.User.email == email).first()
+    if existing:
+        return RedirectResponse(url="/teacher/dashboard?error=Email+already+exists", status_code=302)
+    
+    new_student = models.User(
+        email=email,
+        name=name,
+        password_hash=auth.get_password_hash(password),
+        role="student"
+    )
+    db.add(new_student)
+    db.commit()
+    return RedirectResponse(url="/teacher/dashboard", status_code=302)
+
+@router.post("/student/{student_id}/update")
+def update_student(
+    student_id: int,
+    name: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(""),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.require_teacher)
+):
+    student = db.query(models.User).filter(models.User.id == student_id, models.User.role == "student").first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    student.name = name
+    student.email = email
+    if password.strip():
+        student.password_hash = auth.get_password_hash(password)
+        
+    db.commit()
+    return RedirectResponse(url="/teacher/dashboard", status_code=302)
+
+@router.post("/student/{student_id}/delete")
+def delete_student(
+    student_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.require_teacher)
+):
+    student = db.query(models.User).filter(models.User.id == student_id, models.User.role == "student").first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    db.query(models.CheatFlag).filter(models.CheatFlag.student_id == student_id).delete()
+    
+    subs = db.query(models.Submission).filter(models.Submission.student_id == student_id).all()
+    for s in subs:
+        db.query(models.StudentAnswer).filter(models.StudentAnswer.submission_id == s.id).delete()
+        db.delete(s)
+    
+    db.query(models.GroupMember).filter(models.GroupMember.student_email == student.email).delete()
+    
+    db.delete(student)
+    db.commit()
+    return RedirectResponse(url="/teacher/dashboard", status_code=302)
+
 
 @router.get("/group/{group_id}", response_class=HTMLResponse)
 def view_group(group_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_teacher)):

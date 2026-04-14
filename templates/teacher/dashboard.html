@@ -174,16 +174,20 @@
 
 <div class="row">
     <!-- Groups Section -->
-    <div class="col-lg-4 mb-4">
+    <div class="col-lg-6 mb-4">
         <div class="card glass-card h-100 border-0 shadow-sm">
             <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="fw-bold mb-0">Your Groups</h5>
                 </div>
                 
-                <div class="d-flex flex-column gap-3 mb-4 pe-2" style="max-height: 400px; overflow-y: auto;">
+                <div class="mb-3">
+                    <input type="text" id="groupSearchInput" class="form-control bg-body-tertiary border-secondary border-opacity-25" placeholder="🔍 Search groups..." onkeyup="filterItems('groupSearchInput', 'groups-list')">
+                </div>
+                
+                <div id="groups-list" class="d-flex flex-column gap-3 mb-4 pe-2" style="max-height: 400px; overflow-y: auto;">
                     {% for group in groups %}
-                    <div class="card bg-transparent border border-secondary border-opacity-25 rounded-3 hover-shadow-sm" style="transition: all 0.2s ease;">
+                    <div class="card bg-transparent border border-secondary border-opacity-25 rounded-3 hover-shadow-sm filter-item" data-name="{{ group.name|lower }}" style="transition: all 0.2s ease;">
                         <div class="card-body p-3">
                             <div class="d-flex justify-content-between align-items-start mb-3">
                                 <h6 class="fw-bold mb-0 text-primary" style="color: var(--primary-color) !important;">{{ group.name }}</h6>
@@ -203,6 +207,8 @@
                     </div>
                     {% endfor %}
                 </div>
+                <!-- Pagination -->
+                <div id="groups-list-pagination" class="d-flex justify-content-center mt-2 pagination-container"></div>
 
                 <button type="button" class="btn btn-primary-custom w-100 py-2 fw-bold shadow-sm d-flex justify-content-center align-items-center mt-2" data-bs-toggle="modal" data-bs-target="#createGroupModal" style="border-radius: 10px; transition: transform 0.2s;">
                     <span class="fs-5 me-2">+</span> Create New Cohort
@@ -213,8 +219,55 @@
 
     </div>
 
+    <!-- Students Section -->
+    <div class="col-lg-6 mb-4">
+        <div class="card glass-card h-100 border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">Your Students</h5>
+                </div>
+                
+                <div class="mb-3">
+                    <input type="text" id="studentSearchInput" class="form-control bg-body-tertiary border-secondary border-opacity-25" placeholder="🔍 Search students..." onkeyup="filterItems('studentSearchInput', 'students-list')">
+                </div>
+                
+                <div id="students-list" class="d-flex flex-column gap-3 mb-4 pe-2" style="max-height: 400px; overflow-y: auto;">
+                    {% for student in all_students %}
+                    <div class="card bg-transparent border border-secondary border-opacity-25 rounded-3 hover-shadow-sm filter-item" data-name="{{ student.name|lower }} {{ student.email|lower }}" style="transition: all 0.2s ease;">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-primary" style="color: var(--primary-color) !important;">{{ student.name }}</h6>
+                                    <small class="text-muted">{{ student.email }}</small>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-primary fw-medium border-2" style="width:50%;" onclick="openEditStudentModal({{ student.id }}, '{{ student.name|escape }}', '{{ student.email|escape }}')">✏️ Edit</button>
+                                <button class="btn btn-sm btn-outline-danger fw-medium border-2" style="width:50%;" onclick="confirmDelete('student', {{ student.id }}, '{{ student.name|escape }}')">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center p-4">
+                        <span class="fs-1 opacity-50 d-block mb-3">🧑‍🎓</span>
+                        <p class="text-muted fw-medium mb-0">No students found.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                <!-- Pagination -->
+                <div id="students-list-pagination" class="d-flex justify-content-center mt-2 pagination-container"></div>
+
+                <button type="button" class="btn btn-primary-custom w-100 py-2 fw-bold shadow-sm d-flex justify-content-center align-items-center mt-2" data-bs-toggle="modal" data-bs-target="#createStudentModal" style="border-radius: 10px; transition: transform 0.2s;">
+                    <span class="fs-5 me-2">+</span> Add New Student
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
     <!-- Exams Section -->
-    <div class="col-lg-8 mb-4">
+    <div class="col-lg-12 mb-4">
         <div class="card glass-card h-100 border-0 shadow-sm">
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -222,9 +275,13 @@
                     <a href="/teacher/exam-editor" class="btn btn-sm btn-primary-custom fw-bold rounded-pill px-3 py-2 border-0 shadow-sm"><span class="me-1">✍️</span> Draft Exam</a>
                 </div>
                 
-                <div class="d-flex flex-column gap-3 mb-2" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
+                <div class="mb-3">
+                    <input type="text" id="examSearchInput" class="form-control bg-body-tertiary border-secondary border-opacity-25" placeholder="🔍 Search exams..." onkeyup="filterItems('examSearchInput', 'exams-list')">
+                </div>
+                
+                <div id="exams-list" class="d-flex flex-column gap-3 mb-2" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
                     {% for exam in exams %}
-                    <div class="card bg-transparent border border-secondary border-opacity-25 rounded-3 hover-shadow-sm" style="transition: all 0.2s ease;">
+                    <div class="card bg-transparent border border-secondary border-opacity-25 rounded-3 hover-shadow-sm filter-item" data-name="{{ exam.title|lower }}" style="transition: all 0.2s ease;">
                         <div class="card-body p-3">
                             <div class="row align-items-center">
                                 <div class="col-md-5 mb-2 mb-md-0">
@@ -274,6 +331,8 @@
                     </div>
                     {% endfor %}
                 </div>
+                <!-- Pagination -->
+                <div id="exams-list-pagination" class="d-flex justify-content-center mt-2 pagination-container"></div>
             </div>
         </div>
     </div>
@@ -310,6 +369,70 @@
           <div class="modal-footer border-top border-secondary border-opacity-10">
             <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal" style="background: var(--surface-color); color: var(--text-color); border: 1px solid var(--border-color);">Cancel</button>
             <button type="submit" class="btn btn-primary-custom px-4 fw-bold shadow-sm">🚀 Deploy Group</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Create Student Modal -->
+<div class="modal fade" id="createStudentModal" tabindex="-1" aria-labelledby="createStudentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content glass-card border-0 shadow-lg" style="border-radius: 16px;">
+      <div class="modal-header border-bottom border-secondary border-opacity-10 py-3">
+        <h5 class="modal-title fw-bold" id="createStudentModalLabel" style="color: var(--text-color);">Create New Student</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="/teacher/student/create">
+          <div class="modal-body p-4">
+            <div class="mb-3">
+                <label for="studentName" class="form-label fw-bold text-muted">Full Name <span class="text-danger">*</span></label>
+                <input type="text" id="studentName" name="name" class="form-control form-control-lg bg-body-tertiary border-secondary border-opacity-25 shadow-none" required>
+            </div>
+            <div class="mb-3">
+                <label for="studentEmail" class="form-label fw-bold text-muted">Email Address <span class="text-danger">*</span></label>
+                <input type="email" id="studentEmail" name="email" class="form-control form-control-lg bg-body-tertiary border-secondary border-opacity-25 shadow-none" required>
+            </div>
+            <div class="mb-3">
+                <label for="studentPassword" class="form-label fw-bold text-muted">Temporary Password <span class="text-danger">*</span></label>
+                <input type="password" id="studentPassword" name="password" class="form-control form-control-lg bg-body-tertiary border-secondary border-opacity-25 shadow-none" required>
+            </div>
+          </div>
+          <div class="modal-footer border-top border-secondary border-opacity-10">
+            <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary-custom px-4 fw-bold shadow-sm">➕ Add Student</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Student Modal -->
+<div class="modal fade" id="editStudentModal" tabindex="-1" aria-labelledby="editStudentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content glass-card border-0 shadow-lg" style="border-radius: 16px;">
+      <div class="modal-header border-bottom border-secondary border-opacity-10 py-3">
+        <h5 class="modal-title fw-bold" id="editStudentModalLabel" style="color: var(--text-color);">Edit Student Settings</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="editStudentForm" method="POST" action="">
+          <div class="modal-body p-4">
+            <div class="mb-3">
+                <label for="editStudentName" class="form-label fw-bold text-muted">Full Name <span class="text-danger">*</span></label>
+                <input type="text" id="editStudentName" name="name" class="form-control form-control-lg bg-body-tertiary border-secondary border-opacity-25 shadow-none" required>
+            </div>
+            <div class="mb-3">
+                <label for="editStudentEmail" class="form-label fw-bold text-muted">Email Address <span class="text-danger">*</span></label>
+                <input type="email" id="editStudentEmail" name="email" class="form-control form-control-lg bg-body-tertiary border-secondary border-opacity-25 shadow-none" required>
+            </div>
+            <div class="mb-3">
+                <label for="editStudentPassword" class="form-label fw-bold text-muted">New Password <span class="fw-normal opacity-75">(Leave blank to keep current)</span></label>
+                <input type="password" id="editStudentPassword" name="password" class="form-control form-control-lg bg-body-tertiary border-secondary border-opacity-25 shadow-none">
+            </div>
+          </div>
+          <div class="modal-footer border-top border-secondary border-opacity-10">
+            <button type="button" class="btn btn-light fw-bold px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary-custom px-4 fw-bold shadow-sm">💾 Save Changes</button>
           </div>
       </form>
     </div>
@@ -452,10 +575,95 @@
         } else if (type === 'group') {
             form.action = `/teacher/group/${id}/delete`;
             label.textContent = `Group: "${name}" (+ all its exams & members)`;
+        } else if (type === 'student') {
+            form.action = `/teacher/student/${id}/delete`;
+            label.textContent = `Student: "${name}" (+ all submissions, grades, flags)`;
         }
         
         const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
         modal.show();
     }
+
+    function openEditStudentModal(id, name, email) {
+        document.getElementById('editStudentForm').action = `/teacher/student/${id}/update`;
+        document.getElementById('editStudentName').value = name;
+        document.getElementById('editStudentEmail').value = email;
+        document.getElementById('editStudentPassword').value = '';
+        const modal = new bootstrap.Modal(document.getElementById('editStudentModal'));
+        modal.show();
+    }
+
+    const itemsPerPage = 5;
+    const paginationState = {
+        'groups-list': { page: 1 },
+        'students-list': { page: 1 },
+        'exams-list': { page: 1 }
+    };
+
+    function renderPagination(listId, totalItems) {
+        let state = paginationState[listId];
+        let totalPages = Math.ceil(totalItems / itemsPerPage);
+        let container = document.getElementById(listId + '-pagination');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        if (totalPages <= 1) return;
+
+        let paginationHtml = '<ul class="pagination pagination-sm m-0 border-secondary border-opacity-25 shadow-sm">';
+        paginationHtml += `<li class="page-item ${state.page === 1 ? 'disabled' : ''}"><a class="page-link shadow-none" href="javascript:void(0)" onclick="changePage('${listId}', ${state.page - 1})">Prev</a></li>`;
+        
+        for (let i = 1; i <= totalPages; i++) {
+            paginationHtml += `<li class="page-item ${i === state.page ? 'active' : ''}"><a class="page-link shadow-none" href="javascript:void(0)" onclick="changePage('${listId}', ${i})">${i}</a></li>`;
+        }
+        
+        paginationHtml += `<li class="page-item ${state.page === totalPages ? 'disabled' : ''}"><a class="page-link shadow-none" href="javascript:void(0)" onclick="changePage('${listId}', ${state.page + 1})">Next</a></li>`;
+        paginationHtml += '</ul>';
+        container.innerHTML = paginationHtml;
+    }
+
+    function changePage(listId, newPage) {
+        paginationState[listId].page = newPage;
+        let inputId = listId === 'groups-list' ? 'groupSearchInput' : (listId === 'students-list' ? 'studentSearchInput' : 'examSearchInput');
+        filterItems(inputId, listId, false);
+    }
+
+    function filterItems(inputId, listId, resetPage=true) {
+        if (resetPage) {
+            paginationState[listId].page = 1;
+        }
+        let input = document.getElementById(inputId) ? document.getElementById(inputId).value.toLowerCase() : "";
+        let listContainer = document.getElementById(listId);
+        if(!listContainer) return;
+
+        let items = listContainer.getElementsByClassName('filter-item');
+        let matchingItems = [];
+        
+        for (let i = 0; i < items.length; i++) {
+            let dataName = items[i].getAttribute('data-name') || "";
+            if (dataName.indexOf(input) > -1) {
+                matchingItems.push(items[i]);
+            }
+            items[i].style.display = "none";
+        }
+        
+        let state = paginationState[listId];
+        let totalPages = Math.ceil(matchingItems.length / itemsPerPage);
+        if (state.page > totalPages && totalPages > 0) state.page = totalPages;
+        
+        let startIndex = (state.page - 1) * itemsPerPage;
+        let endIndex = startIndex + itemsPerPage;
+        
+        for (let i = startIndex; i < endIndex && i < matchingItems.length; i++) {
+            matchingItems[i].style.display = "";
+        }
+        
+        renderPagination(listId, matchingItems.length);
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        filterItems('groupSearchInput', 'groups-list');
+        filterItems('studentSearchInput', 'students-list');
+        filterItems('examSearchInput', 'exams-list');
+    });
 </script>
 {% endblock %}
