@@ -382,3 +382,136 @@ def practice_list(request: Request, db: Session = Depends(database.get_db), curr
         "user": current_user,
         "practice_exams": practice_exams
     })
+
+@router.get("/performance", response_class=HTMLResponse)
+def student_performance(request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
+    # Find all groups the student belongs to
+    group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
+    group_ids = [gm.group_id for gm in group_memberships]
+
+    now = datetime.datetime.utcnow()
+    assigned_exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).order_by(models.Exam.start_time.desc()).all() if group_ids else []
+
+    submissions = []
+    if assigned_exams:
+        exam_ids = [e.id for e in assigned_exams]
+        submissions = db.query(models.Submission).filter(
+            models.Submission.student_id == current_user.id,
+            models.Submission.exam_id.in_(exam_ids)
+        ).all()
+
+    sub_map = {s.exam_id: s for s in submissions}
+
+    exam_details = []
+    tests_taken = 0
+    tests_missed = 0
+    tests_pending = 0
+    total_score = 0.0
+    total_possible_score = 0.0
+
+    for exam in assigned_exams:
+        sub = sub_map.get(exam.id)
+        questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam.id).all()
+        exam_max_marks = sum((q.marks if q.marks is not None else exam.default_marks) for q in questions)
+        q_marks_map = {q.id: (q.marks if q.marks is not None else exam.default_marks) for q in questions}
+
+        status = "pending"
+        obtained_marks = 0.0
+        if sub:
+            status = "taken"
+            tests_taken += 1
+            answers = db.query(models.StudentAnswer).filter(models.StudentAnswer.submission_id == sub.id).all()
+            for ans in answers:
+                if ans.is_correct:
+                    obtained_marks += q_marks_map.get(ans.question_id, exam.default_marks)
+                elif ans.selected_option_id is not None:
+                    neg = questions[0].negative_marks if questions else None
+                    neg_marks = neg if neg is not None else exam.default_negative_marks
+                    obtained_marks -= neg_marks
+            obtained_marks = max(obtained_marks, 0.0)
+            total_score += obtained_marks
+            total_possible_score += exam_max_marks
+        elif now > exam.end_time:
+            status = "missed"
+            tests_missed += 1
+        else:
+            tests_pending += 1
+
+        exam_details.append({
+            "exam": exam,
+            "submission": sub,
+            "status": status,
+            "max_marks": round(exam_max_marks, 2),
+            "questions_count": len(questions),
+            "obtained_marks": round(obtained_marks, 2)
+        })
+
+    return templates.TemplateResponse(request=request, name="student/performance.html", context={
+        "user": current_user,
+        "exam_details": exam_details,
+        "tests_assigned": len(assigned_exams),
+        "tests_taken": tests_taken,
+        "tests_missed": tests_missed,
+        "tests_pending": tests_pending,
+        "total_score": round(total_score, 2),
+        "total_possible_score": round(total_possible_score, 2),
+    })
+
+
+@router.get("/my_report/{exam_id}", response_class=HTMLResponse)
+def student_my_report(exam_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
+    exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    # Make sure student was a member of this exam's group
+    member = db.query(models.GroupMember).filter(
+        models.GroupMember.group_id == exam.group_id,
+        models.GroupMember.student_email == current_user.email
+    ).first()
+    if not member:
+        return RedirectResponse(url="/student/performance", status_code=302)
+
+    submission = db.query(models.Submission).filter(
+        models.Submission.exam_id == exam_id,
+        models.Submission.student_id == current_user.id
+    ).first()
+    if not submission:
+        return RedirectResponse(url="/student/performance", status_code=302)
+
+    questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).order_by(models.Question.id).all()
+    answers_map = {
+        a.question_id: a
+        for a in db.query(models.StudentAnswer).filter(models.StudentAnswer.submission_id == submission.id).all()
+    }
+
+    total_possible = sum((q.marks if q.marks is not None else exam.default_marks) for q in questions)
+
+    report_rows = []
+    for idx, q in enumerate(questions):
+        ans = answers_map.get(q.id)
+        correct_opt = next((o for o in q.options if o.is_correct), None)
+        selected_opt = ans.selected_option if ans and ans.selected_option_id else None
+        q_marks = q.marks if q.marks is not None else exam.default_marks
+
+        report_rows.append({
+            "num": idx + 1,
+            "text": q.text,
+            "marks": q_marks,
+            "options": q.options,
+            "selected_option": selected_opt,
+            "correct_option": correct_opt,
+            "is_correct": ans.is_correct if ans else False,
+            "skipped": ans is None or ans.selected_option_id is None
+        })
+
+    return templates.TemplateResponse(request=request, name="student/my_report.html", context={
+        "user": current_user,
+        "exam": exam,
+        "submission": submission,
+        "report_rows": report_rows,
+        "total_possible": total_possible,
+        "passing_marks": exam.passing_marks or 0
+    })
+
+

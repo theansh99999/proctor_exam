@@ -1,9 +1,14 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="mb-4">
-    <h2 class="fw-bold">Student Dashboard</h2>
-    <p class="text-muted">Welcome, {{ user.name }}! Here are your exams.</p>
+<div class="mb-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <h2 class="fw-bold mb-1">Student Dashboard</h2>
+        <p class="text-muted mb-0">Welcome, {{ user.name }}! Here are your exams.</p>
+    </div>
+    <a href="/student/performance" class="btn btn-primary-custom fw-bold shadow-sm d-flex align-items-center gap-2" style="border-radius: 12px; padding: 0.6rem 1.2rem;">
+        <span class="fs-5">📊</span> Performance Analysis
+    </a>
 </div>
 
 <!-- Stat Cards -->
