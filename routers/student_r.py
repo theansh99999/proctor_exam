@@ -1,13 +1,65 @@
 from fastapi import APIRouter, Request, Depends, HTTPException, status, Form
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session, joinedload
 from fastapi.concurrency import run_in_threadpool
 import models, database, auth
 import datetime
+import traceback
 
 router = APIRouter(prefix="/student", tags=["Student Interface"])
 templates = Jinja2Templates(directory="templates")
+
+# ── Notification API ──────────────────────────────────────────────────────────
+@router.get("/notifications", response_class=JSONResponse)
+def get_student_notifications(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
+    """Returns structured notification data for the logged-in student as JSON."""
+    group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
+    group_ids = [gm.group_id for gm in group_memberships]
+
+    now = datetime.datetime.now()
+    exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
+
+    submissions_done = {s.exam_id for s in db.query(models.Submission).filter(models.Submission.student_id == current_user.id).all()}
+
+    notifications = []
+
+    for exam in exams:
+        if exam.id in submissions_done:
+            continue  # already submitted – no notification needed
+
+        time_to_start = (exam.start_time - now).total_seconds()
+        time_since_start = (now - exam.start_time).total_seconds()
+        time_to_end = (exam.end_time - now).total_seconds()
+
+        if time_to_end <= 0:
+            continue  # exam already ended
+
+        if time_to_start > 0:
+            # Upcoming — show assignment reminder
+            notifications.append({
+                "type": "upcoming",
+                "icon": "📅",
+                "title": f"{exam.title} — Upcoming",
+                "message": f"Scheduled for {exam.start_time.strftime('%b %d, %I:%M %p')}",
+                "seconds_to_start": int(time_to_start),
+                "urgent": time_to_start <= 300,  # within 5 minutes
+                "exam_id": exam.id,
+            })
+        elif time_since_start >= 0 and time_to_end > 0:
+            # Active right now
+            notifications.append({
+                "type": "active",
+                "icon": "🔴",
+                "title": f"{exam.title} — LIVE NOW",
+                "message": f"Exam is active! Ends at {exam.end_time.strftime('%I:%M %p')}. Click to start.",
+                "seconds_to_start": 0,
+                "urgent": True,
+                "exam_id": exam.id,
+            })
+
+    return JSONResponse(content={"notifications": notifications})
+
 
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
@@ -16,7 +68,7 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     group_ids = [gm.group_id for gm in group_memberships]
 
     # Find exams for these groups
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now()
     exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
     
     active_exams = []
@@ -93,35 +145,42 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
 
 @router.get("/take_exam/{exam_id}", response_class=HTMLResponse)
 def take_exam(exam_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
-    exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
-    if not exam:
-        raise HTTPException(status_code=404, detail="Exam not found")
+    try:
+        exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+        if not exam:
+            raise HTTPException(status_code=404, detail="Exam not found")
 
-    # Check if student is in group
-    member = db.query(models.GroupMember).filter(models.GroupMember.group_id == exam.group_id, models.GroupMember.student_email == current_user.email).first()
-    if not member:
-        raise HTTPException(status_code=403, detail="Not a member of this group")
+        # Check if student is in group
+        member = db.query(models.GroupMember).filter(models.GroupMember.group_id == exam.group_id, models.GroupMember.student_email == current_user.email).first()
+        if not member:
+            raise HTTPException(status_code=403, detail="Not a member of this group")
 
-    # Check if already submitted
-    submission = db.query(models.Submission).filter(models.Submission.exam_id == exam_id, models.Submission.student_id == current_user.id).first()
-    if submission:
-        return RedirectResponse(url="/student/dashboard", status_code=302)
+        # Check if already submitted
+        submission = db.query(models.Submission).filter(models.Submission.exam_id == exam_id, models.Submission.student_id == current_user.id).first()
+        if submission:
+            return RedirectResponse(url="/student/dashboard", status_code=302)
 
-    # Check time validity
-    now = datetime.datetime.now()
-    if now < exam.start_time or now > exam.end_time:
-        return RedirectResponse(url="/student/dashboard", status_code=302)
+        # Check time validity
+        now = datetime.datetime.now()
+        if now < exam.start_time or now > exam.end_time:
+            return RedirectResponse(url="/student/dashboard", status_code=302)
 
-    questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).all()
-    for q in questions:
-        q.ops = q.options
+        questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).all()
+        for q in questions:
+            q.ops = q.options
 
-    return templates.TemplateResponse(request=request, name="student/exam_take.html", context={
-        "user": current_user,
-        "exam": exam,
-        "questions": questions,
-        "now": now.isoformat()
-    })
+        return templates.TemplateResponse(request=request, name="student/exam_take.html", context={
+            "user": current_user,
+            "exam": exam,
+            "questions": questions
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in take_exam: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error loading exam: {str(e)}")
 
 @router.post("/submit_exam/{exam_id}")
 async def submit_exam(exam_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
@@ -198,7 +257,7 @@ def practice_exam(exam_id: int, request: Request, db: Session = Depends(database
         raise HTTPException(status_code=403, detail="Not assigned to this exam")
 
     # Only missed exams can be practiced (exam has ended)
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now()
     if now <= exam.end_time:
         return RedirectResponse(url="/student/dashboard", status_code=302)
 
@@ -324,56 +383,40 @@ class CheatFlagRequest(BaseModel):
 
 @router.post("/api/cheat_flag")
 async def log_cheat_flag(flag: CheatFlagRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
-    new_flag = models.CheatFlag(
-        exam_id=flag.exam_id,
-        student_id=current_user.id,
-        description=flag.description
-    )
-    db.add(new_flag)
-    db.commit()
-    
-    # Broadcast to Teacher
-    from ws_manager import manager
-    exam = db.query(models.Exam).filter(models.Exam.id == flag.exam_id).first()
-    if exam:
-        teacher_id = exam.group.teacher_id
-        await manager.send_personal_message(
-            {"student_name": current_user.name, "description": flag.description, "exam_title": exam.title},
-            teacher_id
+    try:
+        new_flag = models.CheatFlag(
+            exam_id=flag.exam_id,
+            student_id=current_user.id,
+            description=flag.description
         )
+        db.add(new_flag)
+        db.commit()
+        
+        # Broadcast to Teacher
+        from ws_manager import manager
+        exam = db.query(models.Exam).filter(models.Exam.id == flag.exam_id).first()
+        if exam and exam.group:
+            teacher_id = exam.group.teacher_id
+            try:
+                await manager.send_personal_message(
+                    {"student_name": current_user.name, "description": flag.description, "exam_title": exam.title},
+                    teacher_id
+                )
+            except Exception as ws_err:
+                print(f"WebSocket broadcast error: {ws_err}")
+                # Don't fail the API call if websocket broadcast fails
 
-    return {"status": "logged"}
-
-@router.get("/notifications", response_class=HTMLResponse)
-def view_notifications(request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
-    now = datetime.datetime.utcnow()
-    group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
-    group_ids = [gm.group_id for gm in group_memberships]
-    
-    exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
-    
-    alerts = []
-    
-    # Upcoming exams
-    for e in exams:
-        if now < e.start_time and e.start_time <= now + datetime.timedelta(days=7):
-            alerts.append({
-                "type": "exam",
-                "bg_color": "bg-primary",
-                "message": f"Upcoming Exam '{e.title}' starts conceptually soon",
-                "time": e.start_time.strftime('%b %d, %I:%M %p'),
-                "timestamp": e.start_time
-            })
-            
-    alerts.sort(key=lambda x: x["timestamp"])
-    return templates.TemplateResponse(request=request, name="teacher/notifications.html", context={"user": current_user, "alerts": alerts, "is_student": True})
+        return {"status": "logged"}
+    except Exception as e:
+        print(f"Cheat flag error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error logging cheat flag: {str(e)}")
 
 @router.get("/practice_list", response_class=HTMLResponse)
 def practice_list(request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
     group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
     group_ids = [gm.group_id for gm in group_memberships]
     
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now()
     exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
     
     practice_exams = [exam for exam in exams if now > exam.end_time]
@@ -389,7 +432,7 @@ def student_performance(request: Request, db: Session = Depends(database.get_db)
     group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
     group_ids = [gm.group_id for gm in group_memberships]
 
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now()
     assigned_exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).order_by(models.Exam.start_time.desc()).all() if group_ids else []
 
     submissions = []

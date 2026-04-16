@@ -34,6 +34,8 @@
                     {% if user %}
                         <!-- Notification Bell Dropdown -->
                         <li class="nav-item dropdown me-1 me-lg-3 d-flex align-items-center">
+                            {% if user.role == "teacher" %}
+                            <!-- TEACHER NOTIFICATIONS (Static from Jinja) -->
                             <a class="nav-link text-light position-relative d-flex align-items-center" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 1.3rem;">
                                 🔔
                                 {% set notif_count = 0 %}
@@ -65,7 +67,6 @@
                                         </li>
                                         {% endfor %}
                                     {% endif %}
-                                    
                                     {% if recent_alerts %}
                                         {% for alert in recent_alerts %}
                                         <li>
@@ -83,9 +84,6 @@
                                         </li>
                                         {% endfor %}
                                     {% endif %}
-                                    <div class="p-2 text-center">
-                                        <a href="{% if user.role == 'teacher' %}/teacher/notifications{% else %}/student/notifications{% endif %}" class="text-decoration-none small text-primary fw-bold">View all notifications</a>
-                                    </div>
                                 {% else %}
                                     <div class="p-5 text-center">
                                         <span class="fs-1 opacity-50 mb-3 d-block">📭</span>
@@ -93,6 +91,27 @@
                                     </div>
                                 {% endif %}
                             </ul>
+
+                            {% elif user.role == "student" %}
+                            <!-- STUDENT NOTIFICATIONS (Dynamic via JS) -->
+                            <a class="nav-link text-light position-relative d-flex align-items-center" href="#" id="studentNotificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 1.3rem;">
+                                🔔
+                                <span id="studentNotifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light d-none" style="font-size: 0.60rem; padding: 0.25em 0.5em;">
+                                    0
+                                </span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 mt-3 p-0" aria-labelledby="studentNotificationDropdown" style="width: 320px; max-height: 480px; overflow-y: auto;">
+                                <div class="p-3 border-bottom" style="background-color: var(--surface-color);">
+                                    <h6 class="mb-0 fw-bold" style="color: var(--text-color);">Notifications</h6>
+                                </div>
+                                <div id="studentNotificationList">
+                                    <div class="p-5 text-center">
+                                        <span class="spinner-border spinner-border-sm text-primary mb-3" role="status"></span>
+                                        <p class="text-muted small mb-0 fw-medium">Checking alerts...</p>
+                                    </div>
+                                </div>
+                            </ul>
+                            {% endif %}
                         </li>
 
                         <!-- Profile Dropdown -->
@@ -140,5 +159,71 @@
     </script>
     
     {% block scripts %}{% endblock %}
+
+    {% if user and user.role == 'student' %}
+    <script>
+        async function fetchStudentNotifications() {
+            try {
+                const response = await fetch('/student/notifications');
+                if (!response.ok) return;
+                const data = await response.json();
+                
+                const notifs = data.notifications || [];
+                const badge = document.getElementById('studentNotifBadge');
+                const listContainer = document.getElementById('studentNotificationList');
+                
+                if (!badge || !listContainer) return;
+
+                // Update badge
+                if (notifs.length > 0) {
+                    badge.textContent = notifs.length;
+                    badge.classList.remove('d-none');
+                } else {
+                    badge.classList.add('d-none');
+                }
+
+                // Update dropdown list
+                if (notifs.length === 0) {
+                    listContainer.innerHTML = `
+                        <div class="p-5 text-center">
+                            <span class="fs-1 opacity-50 mb-3 d-block">📭</span>
+                            <p class="text-muted small mb-0 fw-medium">All caught up! No active alerts.</p>
+                        </div>
+                    `;
+                } else {
+                    let html = '';
+                    notifs.forEach(notif => {
+                        let colorClass = notif.type === 'active' ? 'primary' : (notif.urgent ? 'danger' : 'warning');
+                        let targetUrl = notif.type === 'active' ? `/student/take_exam/${notif.exam_id}` : '/student/dashboard';
+                        html += `
+                            <li>
+                                <a class="dropdown-item py-3 border-bottom text-wrap" href="${targetUrl}">
+                                    <div class="d-flex align-items-start border-start border-3 ps-3 border-${colorClass} position-relative py-1">
+                                        <div class="flex-grow-1">
+                                            <p class="mb-1 fw-bold text-body-emphasis" style="font-size: 0.90rem; line-height: 1.4;">
+                                                <span class="me-1">${notif.icon}</span> ${notif.title}
+                                            </p>
+                                            <small class="text-muted fw-bold d-block mt-1" style="font-size: 0.75rem;">${notif.message}</small>
+                                            ${notif.urgent && notif.type === 'upcoming' ? '<span class="badge bg-danger mt-2">Starts soon!</span>' : ''}
+                                        </div>
+                                    </div>
+                                </a>
+                            </li>
+                        `;
+                    });
+                    listContainer.innerHTML = html;
+                }
+            } catch (err) {
+                console.error("Failed to load notifications", err);
+            }
+        }
+
+        // Fetch on load and every 30 seconds
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchStudentNotifications();
+            setInterval(fetchStudentNotifications, 30000);
+        });
+    </script>
+    {% endif %}
 </body>
 </html>

@@ -123,13 +123,13 @@
                             
                             <div class="p-2 border border-warning border-opacity-25 rounded bg-warning bg-opacity-10 text-center mt-3 shadow-sm">
                                 <div class="text-warning text-uppercase fw-bold mb-1" style="letter-spacing: 1.5px; font-size: 0.65rem;">Starts In</div>
-                                <div class="countdown-timer fw-bold text-body-emphasis fs-5" style="font-variant-numeric: tabular-nums;" data-start="{{ exam.start_time.isoformat() }}">
+                                <div class="countdown-timer fw-bold text-body-emphasis fs-5" style="font-variant-numeric: tabular-nums;" data-start="{{ exam.start_time.isoformat() }}" data-exam-id="{{ exam.id }}">
                                     Fetching...
                                 </div>
                             </div>
                         </div>
 
-                        <button class="btn btn-outline-warning w-100 fw-bold text-body-emphasis border-2" style="background-color: rgba(245, 158, 11, 0.1);" onclick="alert('This exam has not started yet. Please wait until {{ exam.start_time.strftime('%I:%M %p on %b %d') }}.')">
+                        <button id="start-btn-{{ exam.id }}" class="btn btn-outline-warning w-100 fw-bold border-2" style="background-color: rgba(245, 158, 11, 0.1);" onclick="alert('This exam has not started yet. Please wait until {{ exam.start_time.strftime('%I:%M %p on %b %d') }}.')">
                             🔒 Start Exam
                         </button>
                     </div>
@@ -327,18 +327,21 @@
         const now = new Date().getTime();
         
         timers.forEach(timer => {
-            // Append 'Z' to safely force standard UTC parsing if server date is naive
-            // Or parse directly if it already contains timezone info. 
-            // In typical local DBs, naive datetime implies local time, so we parse it directly.
             let timeStr = timer.getAttribute('data-start');
+            let examId = timer.getAttribute('data-exam-id');
             const startTime = new Date(timeStr).getTime();
             const distance = startTime - now;
             
             if (distance < 0) {
-                timer.innerHTML = "✅ Started! Refresh Page";
+                timer.innerHTML = "✅ Live Now! Refreshing...";
                 timer.classList.remove('text-body-emphasis', 'text-warning');
                 timer.classList.add('text-success');
-                // Opt: Enable the start button automatically
+                
+                // Flag to prevent multiple reloads
+                if (!timer.dataset.reloading) {
+                    timer.dataset.reloading = "true";
+                    setTimeout(() => window.location.reload(), 1500);
+                }
                 return;
             }
             

@@ -2,31 +2,309 @@
 
 {% block head %}
 <style>
-/* Fullscreen modal styling */
-#overlay {
-    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
-    z-index: 9999; display: flex; align-items: center; justify-content: center;
-    flex-direction: column; text-align: center;
-}
-#video-container {
-    position: fixed; bottom: 20px; right: 20px;
-    width: 200px; height: 150px; border-radius: 12px; overflow: hidden;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid var(--primary-color);
-    z-index: 1000; background: #000;
-}
-#video {
-    width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);
-}
-.blurred { filter: blur(10px); pointer-events: none; }
+    /* Fullscreen modal styling */
+    #warning-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+    }
+
+    #warning-modal.show {
+        display: flex;
+    }
+
+    .warning-content {
+        background: var(--surface-color);
+        border-radius: 16px;
+        padding: 2rem;
+        max-width: 500px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        text-align: center;
+        border: 2px solid #ef4444;
+    }
+
+    .warning-content h3 {
+        color: #ef4444;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+
+    .warning-content p {
+        color: var(--text-color);
+        margin-bottom: 1.5rem;
+        lines: 2;
+    }
+
+    .violation-counter {
+        display: inline-block;
+        background: #ef4444;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: bold;
+        margin-bottom: 1.5rem;
+    }
+
+    .warning-content button {
+        padding: 0.75rem 2rem;
+        font-weight: bold;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .warning-content .ok-btn {
+        background: #4f46e5;
+        color: white;
+    }
+
+    .warning-content .ok-btn:hover {
+        background: #4338ca;
+    }
+
+    #overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    #video-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 200px;
+        height: 150px;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border: 2px solid var(--primary-color);
+        z-index: 1000;
+        background: #000;
+    }
+
+    #video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1);
+    }
+
+    .blurred {
+        filter: blur(10px);
+        pointer-events: none;
+    }
+
+    #system-check-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(10px);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .system-check-content {
+        background: var(--surface-color);
+        border-radius: 16px;
+        padding: 2.5rem;
+        max-width: 600px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        border: 2px solid #4f46e5;
+    }
+
+    .system-check-content h2 {
+        color: #4f46e5;
+        font-weight: bold;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .system-check-content p {
+        color: var(--text-color);
+        margin-bottom: 1.5rem;
+        font-size: 0.95rem;
+    }
+
+    .check-list {
+        list-style: none;
+        padding: 0;
+        margin: 2rem 0;
+        text-align: left;
+    }
+
+    .check-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        margin: 0.5rem 0;
+        background: rgba(79, 70, 229, 0.05);
+        border-radius: 8px;
+        border-left: 4px solid #ccc;
+        transition: all 0.3s;
+    }
+
+    .check-item.checking {
+        background: rgba(251, 191, 36, 0.1);
+        border-left-color: #fbbf24;
+    }
+
+    .check-item.success {
+        background: rgba(16, 185, 129, 0.1);
+        border-left-color: #10b981;
+    }
+
+    .check-item.failed {
+        background: rgba(239, 68, 68, 0.1);
+        border-left-color: #ef4444;
+    }
+
+    .check-icon {
+        font-size: 1.5rem;
+        margin-right: 1rem;
+        min-width: 2rem;
+        text-align: center;
+    }
+
+    .check-text {
+        flex: 1;
+        text-align: left;
+    }
+
+    .check-text .label {
+        font-weight: bold;
+        color: var(--text-color);
+        display: block;
+    }
+
+    .check-text .details {
+        font-size: 0.85rem;
+        color: #666;
+        margin-top: 0.25rem;
+    }
+
+    .system-check-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        justify-content: center;
+    }
+
+    .system-check-buttons button {
+        padding: 0.75rem 1.5rem;
+        font-weight: bold;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .retry-btn {
+        background: #4f46e5;
+        color: white;
+    }
+
+    .retry-btn:hover {
+        background: #4338ca;
+    }
+
+    .retry-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .proceed-btn {
+        background: #10b981;
+        color: white;
+    }
+
+    .proceed-btn:hover:not(:disabled) {
+        background: #059669;
+    }
+
+    .proceed-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .error-message {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid #ef4444;
+        color: #991b1b;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-top: 1rem;
+        text-align: left;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div id="overlay">
+<!-- System Check Modal -->
+<div id="system-check-modal">
+    <div class="system-check-content">
+        <h2>🔧 System Check</h2>
+        <p>We need to verify your device has the required equipment for the exam.</p>
+        
+        <ul class="check-list">
+            <li class="check-item checking" id="camera-check">
+                <div class="check-icon" id="camera-icon">⏳</div>
+                <div class="check-text">
+                    <span class="label">Camera</span>
+                    <span class="details" id="camera-details">Checking...</span>
+                </div>
+            </li>
+            <li class="check-item checking" id="mic-check">
+                <div class="check-icon" id="mic-icon">⏳</div>
+                <div class="check-text">
+                    <span class="label">Microphone</span>
+                    <span class="details" id="mic-details">Checking...</span>
+                </div>
+            </li>
+        </ul>
+
+        <div id="error-message" class="error-message" style="display: none;"></div>
+
+        <div class="system-check-buttons">
+            <button class="retry-btn" id="retry-check-btn" onclick="runSystemCheck();">🔄 Retry Check</button>
+            <button class="proceed-btn" id="proceed-btn" onclick="proceedToExam();" disabled>✓ Proceed</button>
+        </div>
+    </div>
+</div>
+
+<div id="overlay" style="display: none;">
     <div class="card glass-card p-5" style="max-width: 500px;">
         <h2 class="fw-bold text-danger mb-3">Strict Proctoring Enabled</h2>
-        <p class="text-muted">This exam requires <strong>Fullscreen Mode</strong> and <strong>Webcam Access</strong> for AI Proctoring. Violations (exiting fullscreen, multiple faces, switching tabs) will be flagged. 5 Flags = Auto-Submit.</p>
+        <p class="text-muted">This exam requires <strong>Fullscreen Mode</strong> and <strong>Webcam Access</strong> for
+            AI Proctoring. Violations (exiting fullscreen, multiple faces, switching tabs) will be flagged. 5 Flags =
+            Auto-Submit.</p>
         <button id="startBtn" class="btn btn-primary-custom btn-lg w-100 mt-4">I Understand, Start Exam</button>
     </div>
 </div>
@@ -40,21 +318,28 @@
                     <h2 class="fw-bold mb-1 text-primary">{{ exam.title }}</h2>
                     <p class="text-muted mb-0 fw-medium">Total Duration: {{ exam.duration_minutes }} minutes</p>
                 </div>
-                
+
                 {% for q in questions %}
                 <div class="card glass-card mb-4 border-0 shadow-sm question-card" id="qcard-{{ loop.index }}">
                     <div class="card-body p-4">
                         <div class="d-flex justify-content-between align-items-start mb-3">
-                            <h5 class="fw-bold mb-0" style="color: var(--text-color);">{{ loop.index }}. {{ q.text }}</h5>
-                            <button type="button" class="btn btn-sm btn-outline-warning bookmark-btn fw-bold ms-3 shadow-sm rounded-pill px-3" data-qindex="{{ loop.index }}" style="white-space: nowrap;">
+                            <h5 class="fw-bold mb-0" style="color: var(--text-color);">{{ loop.index }}. {{ q.text }}
+                            </h5>
+                            <button type="button"
+                                class="btn btn-sm btn-outline-warning bookmark-btn fw-bold ms-3 shadow-sm rounded-pill px-3"
+                                data-qindex="{{ loop.index }}" style="white-space: nowrap;">
                                 📌 Bookmark
                             </button>
                         </div>
-                        
+
                         {% for opt in q.ops %}
-                        <div class="form-check mb-2 custom-radio-wrapper py-2 px-3 rounded" style="transition: all 0.2s;">
-                            <input class="form-check-input q-option border-secondary" type="radio" name="question_{{ q.id }}" id="opt_{{ opt.id }}" value="{{ opt.id }}" data-qindex="{{ loop.index }}">
-                            <label class="form-check-label w-100 ms-2" for="opt_{{ opt.id }}" style="cursor: pointer; color: var(--text-color);">
+                        <div class="form-check mb-2 custom-radio-wrapper py-2 px-3 rounded"
+                            style="transition: all 0.2s;">
+                            <input class="form-check-input q-option border-secondary" type="radio"
+                                name="question_{{ q.id }}" id="opt_{{ opt.id }}" value="{{ opt.id }}"
+                                data-qindex="{{ loop.index }}">
+                            <label class="form-check-label w-100 ms-2" for="opt_{{ opt.id }}"
+                                style="cursor: pointer; color: var(--text-color);">
                                 {{ opt.text }}
                             </label>
                         </div>
@@ -70,27 +355,36 @@
                     <div class="card-header bg-transparent border-0 pt-4 pb-2">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h5 class="fw-bold mb-0">Question Palette</h5>
-                            <div class="timer fw-bold fs-4 text-danger px-3 py-1 bg-danger bg-opacity-10 border border-danger rounded shadow-sm" id="timer_display" style="font-variant-numeric: tabular-nums;">--:--</div>
+                            <div class="timer fw-bold fs-4 text-danger px-3 py-1 bg-danger bg-opacity-10 border border-danger rounded shadow-sm"
+                                id="timer_display" style="font-variant-numeric: tabular-nums;">--:--</div>
                         </div>
                         <div class="d-flex flex-wrap gap-2 mb-3 text-muted small fw-medium">
-                            <div class="d-flex align-items-center"><span class="badge border border-secondary text-secondary me-1" style="width:14px;height:14px;"> </span> Not Attempted</div>
-                            <div class="d-flex align-items-center"><span class="badge bg-success me-1" style="width:14px;height:14px;"> </span> Attempted</div>
-                            <div class="d-flex align-items-center"><span class="badge bg-warning text-body-emphasis me-1" style="width:14px;height:14px;"> </span> Bookmarked</div>
+                            <div class="d-flex align-items-center"><span
+                                    class="badge border border-secondary text-secondary me-1"
+                                    style="width:14px;height:14px;"> </span> Not Attempted</div>
+                            <div class="d-flex align-items-center"><span class="badge bg-success me-1"
+                                    style="width:14px;height:14px;"> </span> Attempted</div>
+                            <div class="d-flex align-items-center"><span
+                                    class="badge bg-warning text-body-emphasis me-1" style="width:14px;height:14px;">
+                                </span> Bookmarked</div>
                         </div>
                         <hr class="m-0 border-secondary opacity-25">
                     </div>
                     <div class="card-body p-4 pt-3">
                         <div class="d-flex flex-wrap gap-2 mb-4" id="palette-grid">
                             {% for q in questions %}
-                            <button type="button" class="btn btn-outline-secondary palette-btn rounded-circle fw-bold d-flex justify-content-center align-items-center p-0 m-0" 
-                                    style="width: 45px; height: 45px; transition: all 0.2s; border-width: 2px;" data-qindex="{{ loop.index }}" id="palette-btn-{{ loop.index }}">
+                            <button type="button"
+                                class="btn btn-outline-secondary palette-btn rounded-circle fw-bold d-flex justify-content-center align-items-center p-0 m-0"
+                                style="width: 45px; height: 45px; transition: all 0.2s; border-width: 2px;"
+                                data-qindex="{{ loop.index }}" id="palette-btn-{{ loop.index }}">
                                 {{ loop.index }}
                             </button>
                             {% endfor %}
                         </div>
 
                         <div class="text-center mt-2">
-                            <button type="submit" class="btn btn-primary-custom btn-lg w-100 shadow border-2">🚀 Submit Exam</button>
+                            <button type="submit" class="btn btn-primary-custom btn-lg w-100 shadow border-2">🚀 Submit
+                                Exam</button>
                         </div>
                     </div>
                 </div>
@@ -101,6 +395,19 @@
 
 <div id="video-container" style="display:none;">
     <video id="video" autoplay playsinline></video>
+</div>
+
+<!-- Warning Modal -->
+<div id="warning-modal">
+    <div class="warning-content">
+        <h3>⚠️ Violation Detected</h3>
+        <p id="warning-message">You have exited fullscreen mode or switched tabs.</p>
+        <div class="violation-counter">
+            <span id="violation-count">1</span> / <span id="max-violations">5</span> Violations
+        </div>
+        <p style="font-size: 0.9rem; color: #ef4444;">Please return to the exam immediately. <strong id="remaining-warnings">{{remaining_warnings_text}}</strong></p>
+        <button class="ok-btn" onclick="document.getElementById('warning-modal').classList.remove('show'); attemptAutoFullscreen();">OK - I Understand</button>
+    </div>
 </div>
 {% endblock %}
 
@@ -119,6 +426,22 @@
     let lastVideoTime = -1;
     let warningCount = 0;
     const MAX_WARNINGS = 5;
+    let tabSwitchWarningShown = false; // Prevent multiple simultaneous warnings
+
+    // Show warning modal
+    function showWarningModal(description) {
+        warningCount++;
+        document.getElementById('warning-message').innerText = description;
+        document.getElementById('violation-count').innerText = warningCount;
+        const remaining = MAX_WARNINGS - warningCount;
+        if (remaining > 0) {
+            document.getElementById('remaining-warnings').innerText = `${remaining} more violation${remaining > 1 ? 's' : ''} will auto-submit your exam.`;
+        } else {
+            document.getElementById('remaining-warnings').innerText = 'This is your last violation!';
+        }
+        document.getElementById('warning-modal').classList.add('show');
+        tabSwitchWarningShown = true;
+    }
 
     // AI Initialization
     async function initializeVision() {
@@ -143,18 +466,38 @@
 
     // Log flags to server
     async function logCheat(description) {
-        warningCount++;
-        alert(`WARNING ${warningCount}/${MAX_WARNINGS}: ${description}`);
-        
+        if (warningCount >= MAX_WARNINGS) {
+            alert('Maximum violations reached. Auto-submitting exam...');
+            document.getElementById('exam_form').submit();
+            return;
+        }
+
+        showWarningModal(description);
+
+        // Send to backend without blocking
         await fetch('/student/api/cheat_flag', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ exam_id: {{ exam.id }}, description: description })
-        });
+            body: JSON.stringify({ exam_id: {{ exam.id }}, description: description }),
+            credentials: 'include'
+        }).catch(err => console.error('Failed to log violation:', err));
 
         if (warningCount >= MAX_WARNINGS) {
-            alert('Maximum warnings reached. Exam auto-submitting...');
-            document.getElementById('exam_form').submit();
+            setTimeout(() => {
+                alert('Maximum violations reached. Auto-submitting exam...');
+                document.getElementById('exam_form').submit();
+            }, 1000);
+        }
+    }
+
+    // Auto-fullscreen function
+    async function attemptAutoFullscreen() {
+        try {
+            if (!document.fullscreenElement) {
+                await document.documentElement.requestFullscreen();
+            }
+        } catch (err) {
+            console.log('Could not restore fullscreen:', err);
         }
     }
 
@@ -164,19 +507,19 @@
             window.requestAnimationFrame(predictWebcam);
             return;
         }
-        
+
         if (video.videoWidth > 0 && video.currentTime !== lastVideoTime) {
             lastVideoTime = video.currentTime;
             try {
                 const detections = faceDetector.detectForVideo(video, performance.now()).detections;
-                
+
                 // Debouncing counters and tracking
                 if (detections.length === 0) {
                     if (!window.noFaceTimer) {
                         window.noFaceTimer = setTimeout(() => {
                             logCheat("No face detected in webcam.");
                             window.noFaceTimer = null;
-                        }, 3000); 
+                        }, 3000);
                     }
                 } else if (detections.length > 1) {
                     if (!window.multipleFacesTimer) {
@@ -186,21 +529,53 @@
                         }, 2000);
                     }
                 } else {
-                    // Check head pose (Looking away)
+                    // Check head pose (Looking away - extreme left/right or up/down)
                     const keypoints = detections[0].keypoints;
-                    if (keypoints && keypoints.length >= 3) {
-                        // Approximate gaze using eye spacing vs nose tip
-                        // MediaPipe blaze_face gives 6 keypoints: usually RightEye(0), LeftEye(1), Nose(2)
+                    if (keypoints && keypoints.length >= 6) {
+                        // MediaPipe blaze_face keypoints:
+                        // 0: Right Eye, 1: Left Eye, 2: Nose, 
+                        // 3: Mouth, 4: Right Ear, 5: Left Ear
                         const rightEye = keypoints[0];
                         const leftEye = keypoints[1];
                         const nose = keypoints[2];
-                        
+                        const mouth = keypoints[3];
+                        const rightEar = keypoints[4];
+                        const leftEar = keypoints[5];
+
+                        // ===== HORIZONTAL HEAD POSE (Left/Right) =====
                         const eyeDist = Math.abs(leftEye.x - rightEye.x);
-                        // Avoid division by zero
                         if (eyeDist > 0.01) {
+                            // noseRatio: 0.5 = straight, <0.15 = extreme left, >0.85 = extreme right
                             const noseRatio = Math.abs(nose.x - rightEye.x) / eyeDist;
-                            // Normal ratio is around 0.5. If it's < 0.2 or > 0.8, head is turned significantly away
-                            if (noseRatio < 0.15 || noseRatio > 0.85) {
+                            
+                            // EXTREME LEFT - looking at computer to the left
+                            if (noseRatio < 0.05) {
+                                if (!window.extremeLeftTimer) {
+                                    window.extremeLeftTimer = setTimeout(() => {
+                                        logCheat("Extreme left head turn detected - possible cheating attempt.");
+                                        window.extremeLeftTimer = null;
+                                    }, 1500);
+                                }
+                            } else {
+                                clearTimeout(window.extremeLeftTimer);
+                                window.extremeLeftTimer = null;
+                            }
+                            
+                            // EXTREME RIGHT - looking at computer to the right
+                            if (noseRatio > 0.95) {
+                                if (!window.extremeRightTimer) {
+                                    window.extremeRightTimer = setTimeout(() => {
+                                        logCheat("Extreme right head turn detected - possible cheating attempt.");
+                                        window.extremeRightTimer = null;
+                                    }, 1500);
+                                }
+                            } else {
+                                clearTimeout(window.extremeRightTimer);
+                                window.extremeRightTimer = null;
+                            }
+                            
+                            // MODERATE TURN - just looking away
+                            if ((noseRatio < 0.2 || noseRatio > 0.8) && noseRatio >= 0.05 && noseRatio <= 0.95) {
                                 if (!window.lookAwayTimer) {
                                     window.lookAwayTimer = setTimeout(() => {
                                         logCheat("Looking away from screen detected.");
@@ -212,6 +587,26 @@
                                 window.lookAwayTimer = null;
                             }
                         }
+
+                        // ===== VERTICAL HEAD POSE (Up/Down) =====
+                        const eyeCenter = (rightEye.y + leftEye.y) / 2;
+                        const mouthNoseY = (mouth.y + nose.y) / 2;
+                        const verticalDist = Math.abs(mouthNoseY - eyeCenter);
+                        
+                        // If nose is too high (looking down) or too low (looking up)
+                        const verticalRatio = Math.abs(nose.y - eyeCenter) / Math.max(verticalDist, 0.05);
+                        
+                        if (verticalRatio > 2.5) {
+                            if (!window.lookDownTimer) {
+                                window.lookDownTimer = setTimeout(() => {
+                                    logCheat("Looking down excessively - possible cheating with notes.");
+                                    window.lookDownTimer = null;
+                                }, 2000);
+                            }
+                        } else {
+                            clearTimeout(window.lookDownTimer);
+                            window.lookDownTimer = null;
+                        }
                     }
 
                     clearTimeout(window.noFaceTimer);
@@ -219,7 +614,7 @@
                     clearTimeout(window.multipleFacesTimer);
                     window.multipleFacesTimer = null;
                 }
-            } catch(e) { /* Ignore dropped frames */ }
+            } catch (e) { /* Ignore dropped frames */ }
         }
         window.requestAnimationFrame(predictWebcam);
     }
@@ -239,7 +634,7 @@
         analyser.connect(scriptProcessor);
         scriptProcessor.connect(audioContext.destination);
 
-        scriptProcessor.onaudioprocess = function() {
+        scriptProcessor.onaudioprocess = function () {
             const array = new Uint8Array(analyser.frequencyBinCount);
             analyser.getByteFrequencyData(array);
             let values = 0;
@@ -247,7 +642,7 @@
                 values += (array[i]);
             }
             const average = values / array.length;
-            
+
             // Threshold for talking/noise
             if (average > 35) { // Sensitivity threshold
                 if (!window.talkingTimer) {
@@ -270,15 +665,15 @@
             // Request Both Video and Audio
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             video.srcObject = stream;
-            
+
             video.addEventListener("loadeddata", predictWebcam);
             startAudioMonitoring(stream);
-            
+
             overlay.style.display = 'none';
             examContent.classList.remove('blurred');
             videoContainer.style.display = 'block';
-            
-            startTimer(); 
+
+            startTimer();
         } catch (err) {
             alert("Camera and Microphone permissions are required to start the exam. Please allow access and try again.");
             console.error(err);
@@ -288,19 +683,50 @@
     });
 
     // Constraints & Listeners
-    document.addEventListener("visibilitychange", function() {
-        if (document.hidden && overlay.style.display === 'none') {
+    let lastViolationTime = 0;
+    const VIOLATION_COOLDOWN = 2000; // 2 second cooldown between violations
+
+    // Detect tab/window visibility changes (tab switch)
+    document.addEventListener("visibilitychange", function () {
+        const now = Date.now();
+        if (document.hidden && overlay.style.display === 'none' && (now - lastViolationTime) > VIOLATION_COOLDOWN) {
+            lastViolationTime = now;
             logCheat("Tab switched or window minimized.");
+        }
+    });
+
+    // Detect window blur (loses focus to another app)
+    window.addEventListener("blur", function () {
+        const now = Date.now();
+        if (overlay.style.display === 'none' && (now - lastViolationTime) > VIOLATION_COOLDOWN) {
+            lastViolationTime = now;
+            logCheat("Window lost focus - switched to another application.");
+        }
+    });
+
+    // Detect page visibility state changes (more reliable)
+    document.addEventListener("pagehide", function () {
+        if (overlay.style.display === 'none') {
+            logCheat("Attempted to navigate away from exam.");
+        }
+    });
+
+    document.addEventListener("beforeunload", function () {
+        if (overlay.style.display === 'none') {
+            logCheat("Attempted to leave or reload exam page.");
         }
     });
 
     document.addEventListener('fullscreenchange', () => {
         if (!document.fullscreenElement && overlay.style.display === 'none') {
             logCheat("Exited fullscreen mode.");
+            // Blur content
             examContent.classList.add('blurred');
-            alert('Return to fullscreen immediately (F11) or face penalties.');
-            setTimeout(() => { if (!document.fullscreenElement) { logCheat("Failed to return to fullscreen"); } }, 5000);
-            examContent.classList.remove('blurred');
+            // Auto-restore fullscreen after 2 seconds
+            setTimeout(() => {
+                attemptAutoFullscreen();
+                examContent.classList.remove('blurred');
+            }, 2000);
         }
     });
 
@@ -309,13 +735,13 @@
     document.onpaste = e => e.preventDefault();
     document.oncopy = e => e.preventDefault();
     document.oncut = e => e.preventDefault();
-    
+
     // Disable devtools shortcuts
     document.onkeydown = function (e) {
-        if(e.keyCode == 123) { return false; } // F12
-        if(e.ctrlKey && e.shiftKey && e.keyCode == 73) { return false; } // Ctrl+Shift+I
-        if(e.ctrlKey && e.shiftKey && e.keyCode == 74) { return false; } // Ctrl+Shift+J
-        if(e.ctrlKey && e.keyCode == 85) { return false; } // Ctrl+U
+        if (e.keyCode == 123) { return false; } // F12
+        if (e.ctrlKey && e.shiftKey && e.keyCode == 73) { return false; } // Ctrl+Shift+I
+        if (e.ctrlKey && e.shiftKey && e.keyCode == 74) { return false; } // Ctrl+Shift+J
+        if (e.ctrlKey && e.keyCode == 85) { return false; } // Ctrl+U
     };
 
     // --- Navigator Palette UI Script ---
@@ -328,7 +754,7 @@
         btn.addEventListener('click', () => {
             const index = btn.getAttribute('data-qindex');
             const targetCard = document.getElementById(`qcard-${index}`);
-            if(targetCard) {
+            if (targetCard) {
                 targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         });
@@ -339,7 +765,7 @@
         radio.addEventListener('change', () => {
             const index = radio.getAttribute('data-qindex');
             const pBtn = document.getElementById(`palette-btn-${index}`);
-            if(pBtn) {
+            if (pBtn) {
                 pBtn.classList.remove('btn-outline-secondary');
                 // Don't overwrite orange if it's bookmarked currently
                 if (!pBtn.classList.contains('btn-warning')) {
@@ -355,13 +781,13 @@
             const index = btn.getAttribute('data-qindex');
             const pBtn = document.getElementById(`palette-btn-${index}`);
             const isBookmarked = btn.classList.contains('active');
-            
+
             if (!isBookmarked) {
                 // Add Bookmark Indicator
                 btn.classList.add('active', 'btn-warning', 'text-body-emphasis');
                 btn.classList.remove('btn-outline-warning');
                 btn.innerHTML = '🎯 Bookmarked';
-                
+
                 pBtn.classList.remove('btn-outline-secondary', 'btn-success', 'border-success');
                 pBtn.classList.add('btn-warning', 'text-body-emphasis', 'border-warning');
             } else {
@@ -369,9 +795,9 @@
                 btn.classList.remove('active', 'btn-warning', 'text-body-emphasis');
                 btn.classList.add('btn-outline-warning');
                 btn.innerHTML = '📌 Bookmark';
-                
+
                 pBtn.classList.remove('btn-warning', 'text-body-emphasis', 'border-warning');
-                
+
                 // Re-evaluate Attempted status
                 const isAnswered = document.querySelector(`.q-option[data-qindex="${index}"]:checked`);
                 if (isAnswered) {
@@ -390,12 +816,12 @@
         function updateTimer() {
             const now = new Date();
             const diff = endTime - now;
-            
+
             if (diff <= 0) {
                 document.getElementById('timer_display').innerText = "00:00";
                 document.getElementById('timer_display').style.color = "red";
-                if(warningCount < MAX_WARNINGS) {
-                    document.getElementById('exam_form').submit(); 
+                if (warningCount < MAX_WARNINGS) {
+                    document.getElementById('exam_form').submit();
                 }
                 return;
             }
@@ -403,9 +829,9 @@
             const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-            document.getElementById('timer_display').innerText = 
+            document.getElementById('timer_display').innerText =
                 String(minutes).padStart(2, '0') + ":" + String(seconds).padStart(2, '0');
-                
+
             if (minutes < 5) {
                 document.getElementById('timer_display').style.background = "#fca5a5";
                 document.getElementById('timer_display').style.color = "#7f1d1d";
@@ -414,5 +840,112 @@
         setInterval(updateTimer, 1000);
         updateTimer();
     }
+</script>
+
+<!-- Regular script for global functions -->
+<script>
+    // System Check Variables
+    let systemCheckPassed = {
+        camera: false,
+        microphone: false
+    };
+
+    // System Check Function
+    async function runSystemCheck() {
+        systemCheckPassed = { camera: false, microphone: false };
+        document.getElementById('error-message').style.display = 'none';
+        document.getElementById('proceed-btn').disabled = true;
+        document.getElementById('retry-check-btn').disabled = true;
+
+        // Check Camera
+        await checkCamera();
+        // Check Microphone
+        await checkMicrophone();
+
+        document.getElementById('retry-check-btn').disabled = false;
+
+        // Enable proceed button only if both pass
+        if (systemCheckPassed.camera && systemCheckPassed.microphone) {
+            document.getElementById('proceed-btn').disabled = false;
+        } else {
+            showErrorMessage();
+        }
+    }
+
+    async function checkCamera() {
+        const cameraCheck = document.getElementById('camera-check');
+        const cameraIcon = document.getElementById('camera-icon');
+        const cameraDetails = document.getElementById('camera-details');
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            // Stop the stream
+            stream.getTracks().forEach(track => track.stop());
+
+            cameraIcon.innerText = '✅';
+            cameraDetails.innerText = 'Camera detected and working';
+            cameraCheck.classList.remove('checking', 'failed');
+            cameraCheck.classList.add('success');
+            systemCheckPassed.camera = true;
+        } catch (err) {
+            cameraIcon.innerText = '❌';
+            cameraDetails.innerText = `Camera not available: ${err.name}`;
+            cameraCheck.classList.remove('checking', 'success');
+            cameraCheck.classList.add('failed');
+            systemCheckPassed.camera = false;
+        }
+    }
+
+    async function checkMicrophone() {
+        const micCheck = document.getElementById('mic-check');
+        const micIcon = document.getElementById('mic-icon');
+        const micDetails = document.getElementById('mic-details');
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Stop the stream
+            stream.getTracks().forEach(track => track.stop());
+
+            micIcon.innerText = '✅';
+            micDetails.innerText = 'Microphone detected and working';
+            micCheck.classList.remove('checking', 'failed');
+            micCheck.classList.add('success');
+            systemCheckPassed.microphone = true;
+        } catch (err) {
+            micIcon.innerText = '❌';
+            micDetails.innerText = `Microphone not available: ${err.name}`;
+            micCheck.classList.remove('checking', 'success');
+            micCheck.classList.add('failed');
+            systemCheckPassed.microphone = false;
+        }
+    }
+
+    function showErrorMessage() {
+        const errorMsg = document.getElementById('error-message');
+        let message = '<strong>Required Devices Missing:</strong><br>';
+        
+        if (!systemCheckPassed.camera) {
+            message += '• Camera is not available or not permitted<br>';
+        }
+        if (!systemCheckPassed.microphone) {
+            message += '• Microphone is not available or not permitted<br>';
+        }
+        message += '<br>Please check your device and browser permissions, then retry.';
+        
+        errorMsg.innerHTML = message;
+        errorMsg.style.display = 'block';
+    }
+
+    function proceedToExam() {
+        if (systemCheckPassed.camera && systemCheckPassed.microphone) {
+            document.getElementById('system-check-modal').style.display = 'none';
+            document.getElementById('overlay').style.display = 'flex';
+        }
+    }
+
+    // Run system check when page loads
+    window.addEventListener('load', function() {
+        runSystemCheck();
+    });
 </script>
 {% endblock %}
