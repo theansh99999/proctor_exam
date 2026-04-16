@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Depends, Form, BackgroundTasks, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 import models, database, auth
 import datetime
 
@@ -20,7 +20,7 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
     
     # Calculate Stats
-    now = datetime.datetime.now()
+    now = datetime.datetime.utcnow()
     active_count = len([e for e in exams if e.start_time <= now <= e.end_time])
     
     unique_students = set()
@@ -30,9 +30,16 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
             unique_students.add(m.student_email)
     total_students = len(unique_students)
     
+    exam_max_map = {}
+    for e in exams:
+        questions = db.query(models.Question).filter(models.Question.exam_id == e.id).all()
+        m = sum((q.marks if q.marks is not None else e.default_marks) for q in questions)
+        exam_max_map[e.id] = m if m > 0 else 1
+
     exam_ids = [e.id for e in exams]
     submissions = db.query(models.Submission).filter(models.Submission.exam_id.in_(exam_ids)).all() if exam_ids else []
-    avg_score = round(sum(s.score for s in submissions) / len(submissions), 2) if submissions else 0
+    total_percentage = sum((s.score / exam_max_map[s.exam_id] * 100) for s in submissions)
+    avg_score = round(total_percentage / len(submissions), 2) if submissions else 0
     
     # Active Exams Detailed Tracking
     active_exams_data = []
@@ -48,7 +55,12 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
             })
 
     # Analytics Data
-    pass_count = sum(1 for s in submissions if s.score >= 50)
+    pass_count = 0
+    for s in submissions:
+        e = next((ex for ex in exams if ex.id == s.exam_id), None)
+        passing = e.passing_marks if e and e.passing_marks is not None else 0.0
+        if s.score >= passing:
+            pass_count += 1
     fail_count = len(submissions) - pass_count
     
     exam_labels = []
@@ -58,14 +70,16 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
         if esubs:
             trunc_title = e.title[:15] + "..." if len(e.title) > 15 else e.title
             exam_labels.append(trunc_title)
-            exam_averages.append(round(sum(s.score for s in esubs)/len(esubs), 2))
+            avg_pct = sum((s.score / exam_max_map[e.id] * 100) for s in esubs) / len(esubs)
+            exam_averages.append(round(avg_pct, 2))
 
     # Student Performance Insights
     student_scores = {}
     for s in submissions:
         if s.student.name not in student_scores:
             student_scores[s.student.name] = []
-        student_scores[s.student.name].append(s.score)
+        pct = (s.score / exam_max_map[s.exam_id]) * 100
+        student_scores[s.student.name].append(pct)
 
     student_averages = [{"name": name, "avg": round(sum(scores)/len(scores), 2)} for name, scores in student_scores.items()]
     student_averages.sort(key=lambda x: x["avg"], reverse=True)
@@ -282,7 +296,7 @@ def view_student_profile(
         ).all()
         
     sub_map = {s.exam_id: s for s in submissions}
-    now = datetime.datetime.now()
+    now = datetime.datetime.utcnow()
     
     exam_details = []
     tests_taken = 0
@@ -293,7 +307,7 @@ def view_student_profile(
     
     for exam in assigned_exams:
         sub = sub_map.get(exam.id)
-        questions = db.query(models.Question).filter(models.Question.exam_id == exam.id).all()
+        questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam.id).all()
         exam_max_marks = sum((q.marks if q.marks is not None else exam.default_marks) for q in questions)
         
         # Build a marks-per-question lookup
@@ -491,11 +505,13 @@ def view_submissions(exam_id: int, request: Request, db: Session = Depends(datab
     passing_marks = exam.passing_marks or 0
     
     # Calculate total possible marks for this exam
-    questions = db.query(models.Question).filter(models.Question.exam_id == exam_id).order_by(models.Question.id).all()
+    questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).order_by(models.Question.id).all()
     total_possible = sum(
         (q.marks if q.marks is not None else exam.default_marks) for q in questions
     )
-    
+    if total_possible <= 0:
+        total_possible = 1
+        
     passed_submissions = []
     failed_submissions = []
     
@@ -503,8 +519,9 @@ def view_submissions(exam_id: int, request: Request, db: Session = Depends(datab
         sub.student_name = sub.student.name
         sub.flag_count = db.query(models.CheatFlag).filter(models.CheatFlag.exam_id == exam_id, models.CheatFlag.student_id == sub.student_id).count()
         labels.append(sub.student.name)
-        scores.append(round(sub.score, 2))
-        total_score += sub.score
+        pct = (sub.score / total_possible) * 100
+        scores.append(round(pct, 2))
+        total_score += pct
         if sub.score >= passing_marks:
             passed_submissions.append(sub)
         else:
@@ -579,7 +596,7 @@ def view_student_report(exam_id: int, student_id: int, request: Request, db: Ses
     if not submission:
         return RedirectResponse(url=f"/teacher/exam/{exam_id}/submissions", status_code=302)
     
-    questions = db.query(models.Question).filter(models.Question.exam_id == exam_id).order_by(models.Question.id).all()
+    questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).order_by(models.Question.id).all()
     answers_map = {
         a.question_id: a 
         for a in db.query(models.StudentAnswer).filter(models.StudentAnswer.submission_id == submission.id).all()

@@ -55,7 +55,7 @@
         <div class="card glass-card text-center h-100 p-3 border-0">
             <span class="fs-1 mb-1">📊</span>
             <h5 class="text-muted mb-1" style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Class Average</h5>
-            <h2 class="fw-bold {% if avg_score >= passing_marks %}text-success{% else %}text-danger{% endif %} display-5 mb-0">{{ avg_score }}</h2>
+            <h2 class="fw-bold {% if avg_score >= ((passing_marks / total_possible) * 100) %}text-success{% else %}text-danger{% endif %} display-5 mb-0">{{ avg_score }}%</h2>
         </div>
     </div>
 </div>

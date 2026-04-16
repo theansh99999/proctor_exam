@@ -4,3 +4,4 @@ venv/
 .env
 future_txt
 commit.txt
+analysis.txt

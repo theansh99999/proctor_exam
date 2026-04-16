@@ -11,7 +11,12 @@ import database
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
-SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if os.getenv("ENV", "development").lower() == "production":
+        raise Exception("CRITICAL: SECRET_KEY environment variable is not set in production!")
+    print("WARNING: No SECRET_KEY set. Using default insecure key for development.")
+    SECRET_KEY = "supersecretkey"
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "120"))
 

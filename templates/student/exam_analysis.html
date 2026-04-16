@@ -12,10 +12,11 @@
         <div class="card glass-card border-0 shadow-sm p-4">
             <h5 class="fw-bold mb-4">Score Overview</h5>
             <div class="d-flex align-items-center">
-                {% set score_color = 'success' if submission.score >= 80 else ('warning' if submission.score >= 50 else 'danger') %}
-                <h1 class="display-4 fw-bold text-{{ score_color }} mb-0 me-4">{{ submission.score | round(2) }}%</h1>
+                {% set percent = ((submission.score / max_marks) * 100) | round(2) %}
+                {% set score_color = 'success' if percent >= 80 else ('warning' if percent >= 50 else 'danger') %}
+                <h1 class="display-4 fw-bold text-{{ score_color }} mb-0 me-4">{{ percent }}%</h1>
                 <div>
-                    <p class="text-muted mb-1">Status: <span class="badge bg-{{ score_color }} {{ 'text-body-emphasis' if score_color == 'warning' else 'text-white' }}">{{ 'Excellent' if submission.score >= 80 else ('Average' if submission.score >= 50 else 'Needs Improvement') }}</span></p>
+                    <p class="text-muted mb-1">Status: <span class="badge bg-{{ score_color }} {{ 'text-body-emphasis' if score_color == 'warning' else 'text-white' }}">{{ 'Excellent' if percent >= 80 else ('Average' if percent >= 50 else 'Needs Improvement') }}</span></p>
                     <p class="text-muted mb-0 small">Submitted on: {{ submission.submitted_at.strftime('%A, %b %d, %Y at %I:%M %p') }}</p>
                 </div>
             </div>

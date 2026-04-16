@@ -200,8 +200,12 @@
                         </div>
                         <div class="mb-4">
                             <div class="d-flex justify-content-between mb-1">
-                                <span class="small fw-bold text-{{ score_color }}">{{ item.score | round(2) }} marks</span>
-                                <span class="small text-muted">Req: {{ passed_val }}</span>
+                                <span class="small fw-bold text-{{ score_color }}">{{ item.percentage }}%</span>
+                                <span class="small text-muted">Req: {{ ((passed_val / item.max_marks) * 100) | round(2) if item.max_marks > 0 else 0 }}%</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span class="small text-muted" style="font-size: 0.75rem;">Score: {{ item.score | round(2) }} / {{ item.max_marks }}</span>
+                                <span class="small text-muted" style="font-size: 0.75rem;">Raw Req: {{ passed_val }}</span>
                             </div>
                         </div>
                         <div class="d-flex flex-column gap-2 mt-3">

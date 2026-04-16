@@ -46,7 +46,7 @@
     <div class="col-md-3 mb-3">
         <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-bottom: 4px solid #ef4444 !important;">
             <h6 class="text-muted text-uppercase fw-bold mb-2" style="font-size: 0.85rem; letter-spacing: 0.5px;">Global Average Score</h6>
-            <h2 class="fw-bold mb-0 text-danger" style="color: #ef4444 !important;">{{ avg_score }} <span class="fs-6 fw-normal text-muted">marks</span></h2>
+            <h2 class="fw-bold mb-0 text-danger" style="color: #ef4444 !important;">{{ avg_score }}%</h2>
         </div>
     </div>
 </div>
@@ -135,7 +135,7 @@
                             <span class="bg-success text-white fw-bold shadow-sm rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 35px; height: 35px;">{{ loop.index }}</span>
                             <h6 class="fw-bold mb-0 text-body-emphasis">{{ student.name }}</h6>
                         </div>
-                        <span class="badge bg-success shadow-sm px-3 py-2 fs-6">{{ student.avg }} marks</span>
+                        <span class="badge bg-success shadow-sm px-3 py-2 fs-6">{{ student.avg }}%</span>
                     </div>
                     {% endfor %}
                 </div>
@@ -157,7 +157,7 @@
                             <span class="bg-danger text-white fw-bold shadow-sm rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 35px; height: 35px;">!</span>
                             <h6 class="fw-bold mb-0 text-body-emphasis">{{ student.name }}</h6>
                         </div>
-                        <span class="badge bg-danger shadow-sm px-3 py-2 fs-6">{{ student.avg }} marks</span>
+                        <span class="badge bg-danger shadow-sm px-3 py-2 fs-6">{{ student.avg }}%</span>
                     </div>
                     {% else %}
                     <div class="text-center p-4">

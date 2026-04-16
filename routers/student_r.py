@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Request, Depends, HTTPException, status, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from fastapi.concurrency import run_in_threadpool
 import models, database, auth
 import datetime
 
@@ -15,7 +16,7 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     group_ids = [gm.group_id for gm in group_memberships]
 
     # Find exams for these groups
-    now = datetime.datetime.now()
+    now = datetime.datetime.utcnow()
     exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
     
     active_exams = []
@@ -23,19 +24,30 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     past_exams = []
     completed_submissions = {sub.exam_id: sub for sub in db.query(models.Submission).filter(models.Submission.student_id == current_user.id).all()}
 
+    exam_max_map = {}
+    for exam in exams:
+        questions = db.query(models.Question).filter(models.Question.exam_id == exam.id).all()
+        max_m = sum((q.marks if q.marks is not None else exam.default_marks) for q in questions)
+        exam_max_map[exam.id] = max_m if max_m > 0 else 1
+
     for exam in exams:
         if exam.id in completed_submissions:
-            past_exams.append({"exam": exam, "score": completed_submissions[exam.id].score})
+            pct = round((completed_submissions[exam.id].score / exam_max_map[exam.id]) * 100, 2)
+            past_exams.append({"exam": exam, "score": completed_submissions[exam.id].score, "percentage": pct, "max_marks": exam_max_map[exam.id]})
         elif now < exam.start_time:
             upcoming_exams.append(exam)
         elif exam.start_time <= now <= exam.end_time:
             active_exams.append(exam)
         else:
-            past_exams.append({"exam": exam, "score": "Missed"})
+            past_exams.append({"exam": exam, "score": "Missed", "percentage": 0, "max_marks": exam_max_map[exam.id]})
 
     total_attempted = len(completed_submissions)
-    total_score = sum(sub.score for sub in completed_submissions.values())
-    avg_score = round(total_score / total_attempted, 2) if total_attempted > 0 else 0
+
+    total_percentage = 0
+    for sub in completed_submissions.values():
+        total_percentage += (sub.score / exam_max_map[sub.exam_id]) * 100
+
+    avg_score = round(total_percentage / total_attempted, 2) if total_attempted > 0 else 0
     upcoming_count = len(upcoming_exams)
     violations_count = db.query(models.CheatFlag).filter(models.CheatFlag.student_id == current_user.id).count()
 
@@ -45,7 +57,7 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     # Line Chart Data (Progress over time)
     sorted_subs = sorted(completed_submissions.values(), key=lambda x: x.submitted_at)
     line_labels = json.dumps([sub.submitted_at.strftime('%b %d') for sub in sorted_subs])
-    line_data = json.dumps([sub.score for sub in sorted_subs])
+    line_data = json.dumps([round((sub.score / exam_max_map[sub.exam_id]) * 100, 2) for sub in sorted_subs])
     
     # Pie Chart Data (Pass vs Fail)
     pass_count = 0
@@ -53,6 +65,9 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     for sub in completed_submissions.values():
         exam = db.query(models.Exam).filter(models.Exam.id == sub.exam_id).first()
         passing_marks = exam.passing_marks if exam and exam.passing_marks else 0.0
+        # Wait, passing marks is assumed to be raw marks. If passed percentage is needed, wait.
+        # "tu student dashboard m marks ko percent m dikhara h use proper percent m kr"
+        # Since DB passing_marks is raw marks, sub.score is raw marks. The logic is fine for raw.
         if sub.score >= passing_marks:
             pass_count += 1
         else:
@@ -97,10 +112,9 @@ def take_exam(exam_id: int, request: Request, db: Session = Depends(database.get
     if now < exam.start_time or now > exam.end_time:
         return RedirectResponse(url="/student/dashboard", status_code=302)
 
-    questions = db.query(models.Question).filter(models.Question.exam_id == exam_id).all()
-    # Eager load options to avoid lazy load issues in template, though sqlalchemy handles it if properly configured
+    questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).all()
     for q in questions:
-        q.ops = db.query(models.Option).filter(models.Option.question_id == q.id).all()
+        q.ops = q.options
 
     return templates.TemplateResponse(request=request, name="student/exam_take.html", context={
         "user": current_user,
@@ -113,43 +127,46 @@ def take_exam(exam_id: int, request: Request, db: Session = Depends(database.get
 async def submit_exam(exam_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
     form_data = await request.form()
     
-    exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
-    questions = db.query(models.Question).filter(models.Question.exam_id == exam_id).all()
-    
-    sub = models.Submission(exam_id=exam_id, student_id=current_user.id, score=0.0)
-    db.add(sub)
-    db.commit()
-    db.refresh(sub)
-
-    total_score = 0.0
-
-    for q in questions:
-        q_marks = q.marks if q.marks is not None else exam.default_marks
-        q_neg_marks = q.negative_marks if q.negative_marks is not None else exam.default_negative_marks
+    def process_submission():
+        exam_in = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+        questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).all()
         
-        selected_option_id = form_data.get(f"question_{q.id}")
-        is_correct = False
-        opt_val = None
-        if selected_option_id:
-            opt_val = int(selected_option_id)
-            option = db.query(models.Option).filter(models.Option.id == opt_val).first()
-            if option and option.is_correct:
-                is_correct = True
-                total_score += q_marks
-            else:
-                total_score -= q_neg_marks
-                
-        # Save Answer deeply
-        ans = models.StudentAnswer(
-            submission_id=sub.id,
-            question_id=q.id,
-            selected_option_id=opt_val,
-            is_correct=is_correct
-        )
-        db.add(ans)
-    
-    sub.score = total_score
-    db.commit()
+        sub_in = models.Submission(exam_id=exam_id, student_id=current_user.id, score=0.0)
+        db.add(sub_in)
+        db.commit()
+        db.refresh(sub_in)
+
+        total_score = 0.0
+
+        for q in questions:
+            q_marks = q.marks if q.marks is not None else exam_in.default_marks
+            q_neg_marks = q.negative_marks if q.negative_marks is not None else exam_in.default_negative_marks
+            
+            selected_option_id = form_data.get(f"question_{q.id}")
+            is_correct = False
+            opt_val = None
+            if selected_option_id:
+                opt_val = int(selected_option_id)
+                option = next((o for o in q.options if o.id == opt_val), None)
+                if option and option.is_correct:
+                    is_correct = True
+                    total_score += q_marks
+                else:
+                    total_score -= q_neg_marks
+                    
+            ans = models.StudentAnswer(
+                submission_id=sub_in.id,
+                question_id=q.id,
+                selected_option_id=opt_val,
+                is_correct=is_correct
+            )
+            db.add(ans)
+        
+        sub_in.score = total_score
+        db.commit()
+        return exam_in, sub_in
+        
+    exam, sub = await run_in_threadpool(process_submission)
     
     # Broadcast to Teacher
     from ws_manager import manager
@@ -181,14 +198,14 @@ def practice_exam(exam_id: int, request: Request, db: Session = Depends(database
         raise HTTPException(status_code=403, detail="Not assigned to this exam")
 
     # Only missed exams can be practiced (exam has ended)
-    now = datetime.datetime.now()
+    now = datetime.datetime.utcnow()
     if now <= exam.end_time:
         return RedirectResponse(url="/student/dashboard", status_code=302)
 
 
-    questions = db.query(models.Question).filter(models.Question.exam_id == exam_id).all()
+    questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).all()
     for q in questions:
-        q.ops = db.query(models.Option).filter(models.Option.question_id == q.id).all()
+        q.ops = q.options
 
     return templates.TemplateResponse(request=request, name="student/practice_exam.html", context={
         "user": current_user,
@@ -200,51 +217,56 @@ def practice_exam(exam_id: int, request: Request, db: Session = Depends(database
 async def submit_practice(exam_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
     form_data = await request.form()
 
-    exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+    def process_practice():
+        exam_in = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+        if not exam_in:
+            return None, None, None, None, None, None
+
+        questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).all()
+
+        total_score = 0.0
+        max_marks = 0.0
+        report_rows = []
+
+        for q in questions:
+            q_marks = q.marks if q.marks is not None else exam_in.default_marks
+            q_neg_marks = q.negative_marks if q.negative_marks is not None else exam_in.default_negative_marks
+            max_marks += q_marks
+
+            selected_option_id = form_data.get(f"question_{q.id}")
+            is_correct = False
+            selected_opt = None
+            earned = 0.0
+
+            if selected_option_id:
+                opt = next((o for o in q.options if o.id == int(selected_option_id)), None)
+                selected_opt = opt
+                if opt and opt.is_correct:
+                    is_correct = True
+                    total_score += q_marks
+                    earned = q_marks
+                else:
+                    total_score -= q_neg_marks
+                    earned = -q_neg_marks
+
+            report_rows.append({
+                "num": questions.index(q) + 1,
+                "text": q.text,
+                "marks": q_marks,
+                "options": q.options,
+                "selected_option": selected_opt,
+                "is_correct": is_correct,
+                "skipped": selected_option_id is None,
+                "earned": earned,
+            })
+
+        passing_marks = exam_in.passing_marks or 0.0
+        passed = total_score >= passing_marks
+        return exam_in, total_score, max_marks, report_rows, passing_marks, passed
+
+    exam, total_score, max_marks, report_rows, passing_marks, passed = await run_in_threadpool(process_practice)
     if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
-
-    questions = db.query(models.Question).filter(models.Question.exam_id == exam_id).all()
-
-    total_score = 0.0
-    max_marks = 0.0
-    report_rows = []
-
-    for q in questions:
-        q_marks = q.marks if q.marks is not None else exam.default_marks
-        q_neg_marks = q.negative_marks if q.negative_marks is not None else exam.default_negative_marks
-        max_marks += q_marks
-
-        options = db.query(models.Option).filter(models.Option.question_id == q.id).all()
-        selected_option_id = form_data.get(f"question_{q.id}")
-        is_correct = False
-        selected_opt = None
-        earned = 0.0
-
-        if selected_option_id:
-            opt = db.query(models.Option).filter(models.Option.id == int(selected_option_id)).first()
-            selected_opt = opt
-            if opt and opt.is_correct:
-                is_correct = True
-                total_score += q_marks
-                earned = q_marks
-            else:
-                total_score -= q_neg_marks
-                earned = -q_neg_marks
-
-        report_rows.append({
-            "num": questions.index(q) + 1,
-            "text": q.text,
-            "marks": q_marks,
-            "options": options,
-            "selected_option": selected_opt,
-            "is_correct": is_correct,
-            "skipped": selected_option_id is None,
-            "earned": earned,
-        })
-
-    passing_marks = exam.passing_marks or 0.0
-    passed = total_score >= passing_marks
 
     return templates.TemplateResponse(request=request, name="student/practice_result.html", context={
         "user": current_user,
@@ -266,7 +288,10 @@ def view_exam_analysis(exam_id: int, request: Request, db: Session = Depends(dat
     if not submission:
         raise HTTPException(status_code=403, detail="You have not submitted this exam yet")
         
-    answers = db.query(models.StudentAnswer).filter(models.StudentAnswer.submission_id == submission.id).all()
+    answers = db.query(models.StudentAnswer).options(
+        joinedload(models.StudentAnswer.question).joinedload(models.Question.options),
+        joinedload(models.StudentAnswer.selected_option)
+    ).filter(models.StudentAnswer.submission_id == submission.id).all()
     
     analysis_data = []
     for ans in answers:
@@ -279,11 +304,16 @@ def view_exam_analysis(exam_id: int, request: Request, db: Session = Depends(dat
             "correct_answers": [opt.text for opt in correct_options]
         })
         
+    questions = db.query(models.Question).filter(models.Question.exam_id == exam_id).all()
+    max_marks = sum((q.marks if q.marks is not None else exam.default_marks) for q in questions)
+    max_marks = max_marks if max_marks > 0 else 1
+    
     return templates.TemplateResponse(request=request, name="student/exam_analysis.html", context={
         "user": current_user,
         "exam": exam,
         "submission": submission,
-        "analysis_data": analysis_data
+        "analysis_data": analysis_data,
+        "max_marks": max_marks
     })
 
 from pydantic import BaseModel
@@ -316,7 +346,7 @@ async def log_cheat_flag(flag: CheatFlagRequest, db: Session = Depends(database.
 
 @router.get("/notifications", response_class=HTMLResponse)
 def view_notifications(request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
-    now = datetime.datetime.now()
+    now = datetime.datetime.utcnow()
     group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
     group_ids = [gm.group_id for gm in group_memberships]
     
@@ -343,7 +373,7 @@ def practice_list(request: Request, db: Session = Depends(database.get_db), curr
     group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
     group_ids = [gm.group_id for gm in group_memberships]
     
-    now = datetime.datetime.now()
+    now = datetime.datetime.utcnow()
     exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
     
     practice_exams = [exam for exam in exams if now > exam.end_time]
