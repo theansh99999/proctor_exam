@@ -166,6 +166,96 @@ async def submit_exam(exam_id: int, request: Request, db: Session = Depends(data
 
     return RedirectResponse(url="/student/dashboard", status_code=302)
 
+@router.get("/practice_exam/{exam_id}", response_class=HTMLResponse)
+def practice_exam(exam_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
+    exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    # Check if student is in the group (must be assigned)
+    member = db.query(models.GroupMember).filter(
+        models.GroupMember.group_id == exam.group_id,
+        models.GroupMember.student_email == current_user.email
+    ).first()
+    if not member:
+        raise HTTPException(status_code=403, detail="Not assigned to this exam")
+
+    # Only missed exams can be practiced (exam has ended)
+    now = datetime.datetime.now()
+    if now <= exam.end_time:
+        return RedirectResponse(url="/student/dashboard", status_code=302)
+
+
+    questions = db.query(models.Question).filter(models.Question.exam_id == exam_id).all()
+    for q in questions:
+        q.ops = db.query(models.Option).filter(models.Option.question_id == q.id).all()
+
+    return templates.TemplateResponse(request=request, name="student/practice_exam.html", context={
+        "user": current_user,
+        "exam": exam,
+        "questions": questions,
+    })
+
+@router.post("/submit_practice/{exam_id}", response_class=HTMLResponse)
+async def submit_practice(exam_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
+    form_data = await request.form()
+
+    exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+    if not exam:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    questions = db.query(models.Question).filter(models.Question.exam_id == exam_id).all()
+
+    total_score = 0.0
+    max_marks = 0.0
+    report_rows = []
+
+    for q in questions:
+        q_marks = q.marks if q.marks is not None else exam.default_marks
+        q_neg_marks = q.negative_marks if q.negative_marks is not None else exam.default_negative_marks
+        max_marks += q_marks
+
+        options = db.query(models.Option).filter(models.Option.question_id == q.id).all()
+        selected_option_id = form_data.get(f"question_{q.id}")
+        is_correct = False
+        selected_opt = None
+        earned = 0.0
+
+        if selected_option_id:
+            opt = db.query(models.Option).filter(models.Option.id == int(selected_option_id)).first()
+            selected_opt = opt
+            if opt and opt.is_correct:
+                is_correct = True
+                total_score += q_marks
+                earned = q_marks
+            else:
+                total_score -= q_neg_marks
+                earned = -q_neg_marks
+
+        report_rows.append({
+            "num": questions.index(q) + 1,
+            "text": q.text,
+            "marks": q_marks,
+            "options": options,
+            "selected_option": selected_opt,
+            "is_correct": is_correct,
+            "skipped": selected_option_id is None,
+            "earned": earned,
+        })
+
+    passing_marks = exam.passing_marks or 0.0
+    passed = total_score >= passing_marks
+
+    return templates.TemplateResponse(request=request, name="student/practice_result.html", context={
+        "user": current_user,
+        "exam": exam,
+        "total_score": round(total_score, 2),
+        "max_marks": round(max_marks, 2),
+        "passing_marks": passing_marks,
+        "passed": passed,
+        "report_rows": report_rows,
+    })
+
 @router.get("/analysis/{exam_id}", response_class=HTMLResponse)
 def view_exam_analysis(exam_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
     exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
@@ -247,3 +337,18 @@ def view_notifications(request: Request, db: Session = Depends(database.get_db),
             
     alerts.sort(key=lambda x: x["timestamp"])
     return templates.TemplateResponse(request=request, name="teacher/notifications.html", context={"user": current_user, "alerts": alerts, "is_student": True})
+
+@router.get("/practice_list", response_class=HTMLResponse)
+def practice_list(request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
+    group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
+    group_ids = [gm.group_id for gm in group_memberships]
+    
+    now = datetime.datetime.now()
+    exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
+    
+    practice_exams = [exam for exam in exams if now > exam.end_time]
+    
+    return templates.TemplateResponse(request=request, name="student/practice_list.html", context={
+        "user": current_user,
+        "practice_exams": practice_exams
+    })

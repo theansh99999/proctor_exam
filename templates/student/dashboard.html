@@ -77,10 +77,9 @@
                         <span style="font-size: 3rem;">📝</span>
                     </div>
                     <h5 class="fw-bold text-muted mb-2">No Active Exams Right Now</h5>
-                    <p class="text-muted small mb-4">You're all caught up! Wait for your teacher to schedule an exam or practice your skills.</p>
+                    <p class="text-muted small mb-4">You're all caught up! Wait for your teacher to schedule an exam.</p>
                     <div>
-                        <button class="btn btn-outline-primary fw-medium me-2" onclick="alert('Join via Code: Feature coming soon!')">Join Exam via Code</button>
-                        <button class="btn btn-primary-custom fw-medium" onclick="alert('Practice Test: Feature coming soon!')">Start Practice Test</button>
+                        <a href="/student/practice_list" class="btn btn-primary fw-medium shadow-sm">Start Practice Test</a>
                     </div>
                 </div>
             </div>
@@ -139,9 +138,7 @@
                     </div>
                     <h5 class="fw-bold text-muted mb-2">Schedule is Clear</h5>
                     <p class="text-muted small mb-4">You have no upcoming tests scheduled. Keep reviewing your notes or ask your teacher to assign a new exam.</p>
-                    <div>
-                        <button class="btn btn-outline-secondary fw-medium px-4 py-2" onclick="alert('Contact Feature coming soon!')">✉️ Contact Teacher</button>
-                    </div>
+
                 </div>
             </div>
             {% endfor %}
@@ -189,9 +186,9 @@
                                 <span class="small text-muted">—</span>
                             </div>
                         </div>
-                        <button class="btn btn-outline-danger w-100 fw-bold border-2" onclick="alert('You missed this exam. No analysis available.')">
-                            🚫 Missed
-                        </button>
+                        <a href="/student/practice_exam/{{ item.exam.id }}" class="btn btn-warning w-100 fw-bold text-dark border-2">
+                            📖 Practice This Exam
+                        </a>
                     </div>
                     {% else %}
                     {% set score_color = 'success' if item.score >= passed_val else 'danger' %}
@@ -207,9 +204,14 @@
                                 <span class="small text-muted">Req: {{ passed_val }}</span>
                             </div>
                         </div>
-                        <a href="/student/analysis/{{ item.exam.id }}" class="btn btn-outline-primary w-100 fw-bold border-2 d-block text-center mt-3 text-decoration-none">
-                            📊 View Analysis
-                        </a>
+                        <div class="d-flex flex-column gap-2 mt-3">
+                            <a href="/student/practice_exam/{{ item.exam.id }}" class="btn btn-warning w-100 fw-bold text-dark border-2 text-decoration-none bg-opacity-75">
+                                📖 Practice Again
+                            </a>
+                            <a href="/student/analysis/{{ item.exam.id }}" class="btn btn-outline-primary w-100 fw-bold border-2 text-decoration-none">
+                                📊 View Analysis
+                            </a>
+                        </div>
                     </div>
                     {% endif %}
                 </div>

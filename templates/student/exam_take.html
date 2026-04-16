@@ -170,7 +170,7 @@
             try {
                 const detections = faceDetector.detectForVideo(video, performance.now()).detections;
                 
-                // Debouncing counters
+                // Debouncing counters and tracking
                 if (detections.length === 0) {
                     if (!window.noFaceTimer) {
                         window.noFaceTimer = setTimeout(() => {
@@ -186,6 +186,34 @@
                         }, 2000);
                     }
                 } else {
+                    // Check head pose (Looking away)
+                    const keypoints = detections[0].keypoints;
+                    if (keypoints && keypoints.length >= 3) {
+                        // Approximate gaze using eye spacing vs nose tip
+                        // MediaPipe blaze_face gives 6 keypoints: usually RightEye(0), LeftEye(1), Nose(2)
+                        const rightEye = keypoints[0];
+                        const leftEye = keypoints[1];
+                        const nose = keypoints[2];
+                        
+                        const eyeDist = Math.abs(leftEye.x - rightEye.x);
+                        // Avoid division by zero
+                        if (eyeDist > 0.01) {
+                            const noseRatio = Math.abs(nose.x - rightEye.x) / eyeDist;
+                            // Normal ratio is around 0.5. If it's < 0.2 or > 0.8, head is turned significantly away
+                            if (noseRatio < 0.15 || noseRatio > 0.85) {
+                                if (!window.lookAwayTimer) {
+                                    window.lookAwayTimer = setTimeout(() => {
+                                        logCheat("Looking away from screen detected.");
+                                        window.lookAwayTimer = null;
+                                    }, 2000);
+                                }
+                            } else {
+                                clearTimeout(window.lookAwayTimer);
+                                window.lookAwayTimer = null;
+                            }
+                        }
+                    }
+
                     clearTimeout(window.noFaceTimer);
                     window.noFaceTimer = null;
                     clearTimeout(window.multipleFacesTimer);
@@ -196,14 +224,55 @@
         window.requestAnimationFrame(predictWebcam);
     }
 
+    // Audio Detection (Talking)
+    let audioContext;
+    function startAudioMonitoring(stream) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        const microphone = audioContext.createMediaStreamSource(stream);
+        const scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
+
+        analyser.smoothingTimeConstant = 0.8;
+        analyser.fftSize = 1024;
+
+        microphone.connect(analyser);
+        analyser.connect(scriptProcessor);
+        scriptProcessor.connect(audioContext.destination);
+
+        scriptProcessor.onaudioprocess = function() {
+            const array = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(array);
+            let values = 0;
+            for (let i = 0; i < array.length; i++) {
+                values += (array[i]);
+            }
+            const average = values / array.length;
+            
+            // Threshold for talking/noise
+            if (average > 35) { // Sensitivity threshold
+                if (!window.talkingTimer) {
+                    window.talkingTimer = setTimeout(() => {
+                        logCheat("Talking or background noise detected.");
+                        window.talkingTimer = null;
+                    }, 2500); // Trigger if noise persists for 2.5s
+                }
+            } else {
+                clearTimeout(window.talkingTimer);
+                window.talkingTimer = null;
+            }
+        };
+    }
+
     // Start Exam Process
     startBtn.addEventListener('click', async () => {
         try {
             await document.documentElement.requestFullscreen();
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            // Request Both Video and Audio
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             video.srcObject = stream;
             
             video.addEventListener("loadeddata", predictWebcam);
+            startAudioMonitoring(stream);
             
             overlay.style.display = 'none';
             examContent.classList.remove('blurred');
@@ -211,8 +280,10 @@
             
             startTimer(); 
         } catch (err) {
-            alert("Please allow Camera and Fullscreen to start the exam.");
+            alert("Camera and Microphone permissions are required to start the exam. Please allow access and try again.");
             console.error(err);
+            // Log if denied explicitly
+            logCheat("Camera/Microphone access was denied or unavailable.");
         }
     });
 

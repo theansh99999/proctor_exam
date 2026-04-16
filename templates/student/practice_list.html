@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4 d-flex align-items-center gap-3">
+    <a href="/student/dashboard" class="btn btn-outline-secondary border-secondary border-opacity-25 fw-bold rounded-pill px-3 shadow-sm" style="color: var(--text-color);">← Dashboard</a>
+    <span class="badge bg-warning text-dark rounded-pill px-3 py-2 fw-bold">📖 Practice Zone</span>
+</div>
+
+<div class="mb-4">
+    <h2 class="fw-bold">Available Practice Tests</h2>
+    <p class="text-muted">You can practice these past exams as many times as you want. Marks will not be recorded.</p>
+</div>
+
+<div class="row">
+    {% for exam in practice_exams %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card glass-card h-100 border-0 shadow-sm position-relative overflow-hidden">
+            <div class="position-absolute top-0 start-0 w-100 bg-warning" style="height: 4px;"></div>
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <h5 class="card-title fw-bold text-primary mb-0" style="color: var(--primary-color) !important;">{{ exam.title }}</h5>
+                    <span class="badge bg-warning text-dark rounded-pill fw-bold">Practice</span>
+                </div>
+                <div class="mb-4">
+                    <p class="text-muted small mb-1"><span style="font-size: 1.1rem;">⏳</span> {{ exam.duration_minutes }} Mins Duration</p>
+                    <p class="text-muted small mb-0"><span style="font-size: 1.1rem;">🎯</span> {{ exam.default_marks }} Marks per Question</p>
+                </div>
+                <a href="/student/practice_exam/{{ exam.id }}" class="btn btn-warning w-100 fw-bold text-dark border-2">
+                    📖 Start Practice
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="card glass-card border-0 shadow-sm text-center p-5">
+            <div class="mb-3">
+                <span style="font-size: 3rem;">📭</span>
+            </div>
+            <h5 class="fw-bold text-muted mb-2">No Practice Tests Available</h5>
+            <p class="text-muted small mb-0">There are no past exams available for practice yet. Exams appear here automatically after their scheduled time ends.</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4 d-flex align-items-center gap-3">
+    <a href="/student/dashboard" class="btn btn-outline-secondary border-secondary border-opacity-25 fw-bold rounded-pill px-3 shadow-sm" style="color: var(--text-color);">← Dashboard</a>
+    <div>
+        <span class="badge bg-warning text-dark rounded-pill px-3 py-2 fw-bold me-2">📖 Practice Mode</span>
+        <small class="text-muted fw-medium">Score is not saved — for self-assessment only</small>
+    </div>
+</div>
+
+<form method="POST" action="/student/submit_practice/{{ exam.id }}" id="practice_form">
+    <div class="row">
+        <!-- Questions Column -->
+        <div class="col-lg-8 mb-4">
+            <div class="mb-4">
+                <h2 class="fw-bold mb-1 text-primary">{{ exam.title }}</h2>
+                <p class="text-muted mb-0 fw-medium">Practice Mode — No proctoring, no score recording</p>
+            </div>
+
+            {% for q in questions %}
+            <div class="card glass-card mb-4 border-0 shadow-sm question-card" id="qcard-{{ loop.index }}">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h5 class="fw-bold mb-0" style="color: var(--text-color);">{{ loop.index }}. {{ q.text }}</h5>
+                        <span class="badge bg-primary bg-opacity-15 text-primary rounded-pill px-3 ms-3" style="white-space: nowrap;">{{ q.marks or exam.default_marks }} marks</span>
+                    </div>
+
+                    {% for opt in q.ops %}
+                    <div class="form-check mb-2 custom-radio-wrapper py-2 px-3 rounded" style="transition: all 0.2s;">
+                        <input class="form-check-input q-option border-secondary" type="radio" name="question_{{ q.id }}" id="opt_{{ opt.id }}" value="{{ opt.id }}" data-qindex="{{ loop.index }}">
+                        <label class="form-check-label w-100 ms-2" for="opt_{{ opt.id }}" style="cursor: pointer; color: var(--text-color);">
+                            {{ opt.text }}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Navigation Palette Column -->
+        <div class="col-lg-4">
+            <div class="card glass-card border-0 shadow-sm sticky-top" style="top: 20px; z-index: 10;">
+                <div class="card-header bg-transparent border-0 pt-4 pb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0">Question Palette</h5>
+                        <span class="badge bg-warning text-dark fw-bold px-3 py-2">📖 Practice</span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-3 text-muted small fw-medium">
+                        <div class="d-flex align-items-center"><span class="badge border border-secondary text-secondary me-1" style="width:14px;height:14px;"> </span> Not Attempted</div>
+                        <div class="d-flex align-items-center"><span class="badge bg-success me-1" style="width:14px;height:14px;"> </span> Attempted</div>
+                    </div>
+                    <hr class="m-0 border-secondary opacity-25">
+                </div>
+                <div class="card-body p-4 pt-3">
+                    <div class="d-flex flex-wrap gap-2 mb-4" id="palette-grid">
+                        {% for q in questions %}
+                        <button type="button" class="btn btn-outline-secondary palette-btn rounded-circle fw-bold d-flex justify-content-center align-items-center p-0 m-0"
+                                style="width: 45px; height: 45px; transition: all 0.2s; border-width: 2px;" data-qindex="{{ loop.index }}" id="palette-btn-{{ loop.index }}">
+                            {{ loop.index }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <div class="text-center mt-2">
+                        <button type="submit" class="btn btn-warning btn-lg w-100 shadow fw-bold text-dark border-2">📊 Submit & See Results</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Palette navigation
+    const paletteBtns = document.querySelectorAll('.palette-btn');
+    const optionRadios = document.querySelectorAll('.q-option');
+
+    paletteBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const index = btn.getAttribute('data-qindex');
+            const targetCard = document.getElementById(`qcard-${index}`);
+            if (targetCard) {
+                targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    });
+
+    optionRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            const index = radio.getAttribute('data-qindex');
+            const pBtn = document.getElementById(`palette-btn-${index}`);
+            if (pBtn) {
+                pBtn.classList.remove('btn-outline-secondary');
+                pBtn.classList.add('btn-success', 'text-white', 'border-success');
+            }
+        });
+    });
+</script>
+{% endblock %}
