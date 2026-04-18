@@ -8,6 +8,21 @@ from datetime import datetime, timezone
 router = APIRouter(prefix="/teacher", tags=["Teacher Dashboard"])
 templates = Jinja2Templates(directory="templates")
 
+# ── Helper Function for Score Calculation ──────────────────────────────────────
+def calculate_exam_max_marks(questions: list, default_marks: float) -> float:
+    """
+    Calculate maximum possible marks for an exam given questions.
+    
+    Args:
+        questions: List of Question objects
+        default_marks: Default marks per question if not specified
+        
+    Returns:
+        Total maximum marks possible (minimum 1 if no marks found)
+    """
+    max_m = sum((q.marks if q.marks is not None else default_marks) for q in questions)
+    return max_m if max_m > 0 else 1
+
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_teacher)):
     groups = db.query(models.Group).filter(models.Group.teacher_id == current_user.id).all()
@@ -41,12 +56,11 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
             questions_by_exam[q.exam_id] = []
         questions_by_exam[q.exam_id].append(q)
     
-    # Calculate max marks per exam
+    # Calculate max marks per exam (using helper function)
     exam_max_map = {}
     for e in exams:
         questions = questions_by_exam.get(e.id, [])
-        m = sum((q.marks if q.marks is not None else e.default_marks) for q in questions)
-        exam_max_map[e.id] = m if m > 0 else 1
+        exam_max_map[e.id] = calculate_exam_max_marks(questions, e.default_marks)
 
     exam_ids = [e.id for e in exams]
     submissions = db.query(models.Submission).filter(models.Submission.exam_id.in_(exam_ids)).all() if exam_ids else []
@@ -320,7 +334,7 @@ def view_student_profile(
     for exam in assigned_exams:
         sub = sub_map.get(exam.id)
         questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam.id).all()
-        exam_max_marks = sum((q.marks if q.marks is not None else exam.default_marks) for q in questions)
+        exam_max_marks = calculate_exam_max_marks(questions, exam.default_marks)  # Using helper function
         
         # Build a marks-per-question lookup
         q_marks_map = {q.id: (q.marks if q.marks is not None else exam.default_marks) for q in questions}
@@ -614,7 +628,7 @@ def view_student_report(exam_id: int, student_id: int, request: Request, db: Ses
         for a in db.query(models.StudentAnswer).filter(models.StudentAnswer.submission_id == submission.id).all()
     }
     
-    total_possible = sum((q.marks if q.marks is not None else exam.default_marks) for q in questions)
+    total_possible = calculate_exam_max_marks(questions, exam.default_marks)  # Using helper function
     
     report_rows = []
     for idx, q in enumerate(questions):
