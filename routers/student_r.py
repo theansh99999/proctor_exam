@@ -250,6 +250,8 @@ async def submit_exam(exam_id: int, request: Request, db: Session = Depends(data
             )
             db.add(ans)
         
+        # Floor score to minimum 0 (negative marks cannot make score go below 0)
+        total_score = max(0.0, total_score)
         sub_in.score = total_score
         db.commit()
         return exam_in, sub_in
@@ -352,6 +354,8 @@ async def submit_practice(exam_id: int, request: Request, db: Session = Depends(
                 "earned": earned,
             })
 
+        # Floor score to minimum 0 (negative marks cannot make score go below 0)
+        total_score = max(0.0, total_score)
         passing_marks = exam_in.passing_marks or 0.0
         passed = total_score >= passing_marks
         return exam_in, total_score, max_marks, report_rows, passing_marks, passed
@@ -529,6 +533,7 @@ def student_performance(request: Request, db: Session = Depends(database.get_db)
                     neg = questions[0].negative_marks if questions else None
                     neg_marks = neg if neg is not None else exam.default_negative_marks
                     obtained_marks -= neg_marks
+            # Floor at 0 - marks cannot go negative
             obtained_marks = max(obtained_marks, 0.0)
             total_score += obtained_marks
             total_possible_score += exam_max_marks
