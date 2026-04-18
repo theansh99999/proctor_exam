@@ -76,9 +76,21 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     past_exams = []
     completed_submissions = {sub.exam_id: sub for sub in db.query(models.Submission).filter(models.Submission.student_id == current_user.id).all()}
 
+    # BATCH LOAD: Fetch all questions for all exams in 1 query instead of N queries
+    exam_ids = [e.id for e in exams]
+    all_questions = db.query(models.Question).filter(models.Question.exam_id.in_(exam_ids)).all() if exam_ids else []
+    
+    # Group questions by exam_id
+    questions_by_exam = {}
+    for q in all_questions:
+        if q.exam_id not in questions_by_exam:
+            questions_by_exam[q.exam_id] = []
+        questions_by_exam[q.exam_id].append(q)
+    
+    # Calculate max marks per exam using grouped questions
     exam_max_map = {}
     for exam in exams:
-        questions = db.query(models.Question).filter(models.Question.exam_id == exam.id).all()
+        questions = questions_by_exam.get(exam.id, [])
         max_m = sum((q.marks if q.marks is not None else exam.default_marks) for q in questions)
         exam_max_map[exam.id] = max_m if max_m > 0 else 1
 
@@ -114,12 +126,14 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     # Pie Chart Data (Pass vs Fail)
     pass_count = 0
     fail_count = 0
+    
+    # BATCH LOAD: Fetch all exams for submissions in 1 query instead of fetching per submission
+    submission_exam_ids = list(completed_submissions.keys())
+    submission_exams = {ex.id: ex for ex in db.query(models.Exam).filter(models.Exam.id.in_(submission_exam_ids)).all()} if submission_exam_ids else {}
+    
     for sub in completed_submissions.values():
-        exam = db.query(models.Exam).filter(models.Exam.id == sub.exam_id).first()
+        exam = submission_exams.get(sub.exam_id)  # No query - already fetched!
         passing_marks = exam.passing_marks if exam and exam.passing_marks else 0.0
-        # Wait, passing marks is assumed to be raw marks. If passed percentage is needed, wait.
-        # "tu student dashboard m marks ko percent m dikhara h use proper percent m kr"
-        # Since DB passing_marks is raw marks, sub.score is raw marks. The logic is fine for raw.
         if sub.score >= passing_marks:
             pass_count += 1
         else:
@@ -458,6 +472,24 @@ def student_performance(request: Request, db: Session = Depends(database.get_db)
 
     sub_map = {s.exam_id: s for s in submissions}
 
+    # BATCH LOAD: Fetch all questions for all exams in 1 query
+    exam_ids = [e.id for e in assigned_exams]
+    all_questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id.in_(exam_ids)).all() if exam_ids else []
+    questions_by_exam = {}
+    for q in all_questions:
+        if q.exam_id not in questions_by_exam:
+            questions_by_exam[q.exam_id] = []
+        questions_by_exam[q.exam_id].append(q)
+    
+    # BATCH LOAD: Fetch all answers for all submissions in 1 query
+    submission_ids = [s.id for s in submissions]
+    all_answers = db.query(models.StudentAnswer).filter(models.StudentAnswer.submission_id.in_(submission_ids)).all() if submission_ids else []
+    answers_by_submission = {}
+    for ans in all_answers:
+        if ans.submission_id not in answers_by_submission:
+            answers_by_submission[ans.submission_id] = []
+        answers_by_submission[ans.submission_id].append(ans)
+
     exam_details = []
     tests_taken = 0
     tests_missed = 0
@@ -467,7 +499,7 @@ def student_performance(request: Request, db: Session = Depends(database.get_db)
 
     for exam in assigned_exams:
         sub = sub_map.get(exam.id)
-        questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam.id).all()
+        questions = questions_by_exam.get(exam.id, [])  # No query - already batch loaded!
         exam_max_marks = sum((q.marks if q.marks is not None else exam.default_marks) for q in questions)
         q_marks_map = {q.id: (q.marks if q.marks is not None else exam.default_marks) for q in questions}
 
@@ -476,7 +508,7 @@ def student_performance(request: Request, db: Session = Depends(database.get_db)
         if sub:
             status = "taken"
             tests_taken += 1
-            answers = db.query(models.StudentAnswer).filter(models.StudentAnswer.submission_id == sub.id).all()
+            answers = answers_by_submission.get(sub.id, [])  # No query - already batch loaded!
             for ans in answers:
                 if ans.is_correct:
                     obtained_marks += q_marks_map.get(ans.question_id, exam.default_marks)

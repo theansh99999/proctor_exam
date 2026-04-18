@@ -30,9 +30,21 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
             unique_students.add(m.student_email)
     total_students = len(unique_students)
     
+    # BATCH LOAD: Fetch all questions for all exams in 1 query instead of N queries
+    exam_ids = [e.id for e in exams]
+    all_questions = db.query(models.Question).filter(models.Question.exam_id.in_(exam_ids)).all() if exam_ids else []
+    
+    # Group questions by exam_id
+    questions_by_exam = {}
+    for q in all_questions:
+        if q.exam_id not in questions_by_exam:
+            questions_by_exam[q.exam_id] = []
+        questions_by_exam[q.exam_id].append(q)
+    
+    # Calculate max marks per exam
     exam_max_map = {}
     for e in exams:
-        questions = db.query(models.Question).filter(models.Question.exam_id == e.id).all()
+        questions = questions_by_exam.get(e.id, [])
         m = sum((q.marks if q.marks is not None else e.default_marks) for q in questions)
         exam_max_map[e.id] = m if m > 0 else 1
 
