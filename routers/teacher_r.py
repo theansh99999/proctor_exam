@@ -85,6 +85,7 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     for s in submissions:
         e = next((ex for ex in exams if ex.id == s.exam_id), None)
         passing = e.passing_marks if e and e.passing_marks is not None else 0.0
+        # passing_marks is RAW MARKS (not percentage) - compare with submission score
         if s.score >= passing:
             pass_count += 1
     fail_count = len(submissions) - pass_count
@@ -409,7 +410,7 @@ def exam_editor(request: Request, db: Session = Depends(database.get_db), curren
     groups = db.query(models.Group).filter(models.Group.teacher_id == current_user.id).all()
     return templates.TemplateResponse(request=request, name="teacher/exam_editor.html", context={"groups": groups, "user": current_user})
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List, Optional
 
 class OptionCreate(BaseModel):
@@ -434,6 +435,24 @@ class ExamCreateAPI(BaseModel):
     default_negative_marks: float = 0.0
     passing_marks: float = 0.0
     questions: List[QuestionCreate]
+    
+    @field_validator('passing_marks')
+    @classmethod
+    def validate_passing_marks_range(cls, v):
+        """Validate that passing_marks is not negative and is reasonable"""
+        if v < 0:
+            raise ValueError(f"passing_marks cannot be negative, got {v}")
+        if v > 10000:  # Sanity check - no exam will have 10000 marks
+            raise ValueError(f"passing_marks seems too high ({v}), maximum 10000 allowed")
+        return v
+    
+    def calculate_max_marks(self) -> float:
+        """Calculate total possible marks for this exam"""
+        total = 0.0
+        for question in self.questions:
+            marks = question.marks if question.marks is not None else self.default_marks
+            total += marks
+        return total
 
 class OptionEdit(BaseModel):
     id: Optional[int] = None
@@ -458,6 +477,24 @@ class ExamEditAPI(BaseModel):
     default_negative_marks: float = 0.0
     passing_marks: float = 0.0
     questions: List[QuestionEdit]
+    
+    @field_validator('passing_marks')
+    @classmethod
+    def validate_passing_marks_range(cls, v):
+        """Validate that passing_marks is not negative and is reasonable"""
+        if v < 0:
+            raise ValueError(f"passing_marks cannot be negative, got {v}")
+        if v > 10000:  # Sanity check - no exam will have 10000 marks
+            raise ValueError(f"passing_marks seems too high ({v}), maximum 10000 allowed")
+        return v
+    
+    def calculate_max_marks(self) -> float:
+        """Calculate total possible marks for this exam"""
+        total = 0.0
+        for question in self.questions:
+            marks = question.marks if question.marks is not None else self.default_marks
+            total += marks
+        return total
 
 import time
 
@@ -470,6 +507,15 @@ def notify_students_via_email(group_members, exam_title):
 def api_create_exam(exam_data: ExamCreateAPI, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_teacher)):
     if not exam_data.questions:
         raise HTTPException(status_code=400, detail="At least 1 question must be added")
+    
+    # Validate that passing_marks <= total possible marks
+    max_marks = exam_data.calculate_max_marks()
+    if exam_data.passing_marks > max_marks:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"passing_marks ({exam_data.passing_marks}) cannot exceed total possible marks ({max_marks})"
+        )
+    
     # parse datetime
     try:
         st = datetime.datetime.fromisoformat(exam_data.start_time.replace('Z', '+00:00'))
@@ -548,6 +594,7 @@ def view_submissions(exam_id: int, request: Request, db: Session = Depends(datab
         pct = (sub.score / total_possible) * 100
         scores.append(round(pct, 2))
         total_score += pct
+        # passing_marks is RAW MARKS (not percentage) - compare with submission score (also raw marks)
         if sub.score >= passing_marks:
             passed_submissions.append(sub)
         else:
@@ -732,6 +779,14 @@ def api_edit_exam(
         
     if not exam_data.questions:
         raise HTTPException(status_code=400, detail="At least 1 question must be added")
+    
+    # Validate that passing_marks <= total possible marks
+    max_marks = exam_data.calculate_max_marks()
+    if exam_data.passing_marks > max_marks:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"passing_marks ({exam_data.passing_marks}) cannot exceed total possible marks ({max_marks})"
+        )
 
     exam.title = exam_data.title
     try:
@@ -807,6 +862,7 @@ def monitor_exam_live(exam_id: int, request: Request, db: Session = Depends(data
     assigned_count = db.query(models.GroupMember).filter(models.GroupMember.group_id == exam.group_id).count()
     e_subs = db.query(models.Submission).filter(models.Submission.exam_id == exam_id).all()
     passing_marks = exam.passing_marks or 0
+    # passing_marks is RAW MARKS (not percentage) stored in database
     live_submissions = []
     pass_c = 0
     

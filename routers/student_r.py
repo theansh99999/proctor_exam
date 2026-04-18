@@ -148,6 +148,7 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     for sub in completed_submissions.values():
         exam = submission_exams.get(sub.exam_id)  # No query - already fetched!
         passing_marks = exam.passing_marks if exam and exam.passing_marks else 0.0
+        # passing_marks is RAW MARKS, not percentage - compare directly with submission score
         if sub.score >= passing_marks:
             pass_count += 1
         else:
@@ -263,6 +264,7 @@ async def submit_exam(exam_id: int, request: Request, db: Session = Depends(data
         from ws_manager import manager
         teacher_id = exam.group.teacher_id
         passing_marks = exam.passing_marks or 0
+        # passing_marks is RAW MARKS (not percentage) - compare with submission score (also raw marks)
         try:
             await manager.send_personal_message({
                 "type": "live_submission",
@@ -357,6 +359,7 @@ async def submit_practice(exam_id: int, request: Request, db: Session = Depends(
         # Floor score to minimum 0 (negative marks cannot make score go below 0)
         total_score = max(0.0, total_score)
         passing_marks = exam_in.passing_marks or 0.0
+        # passing_marks is RAW MARKS (not percentage) - compare directly with total_score
         passed = total_score >= passing_marks
         return exam_in, total_score, max_marks, report_rows, passing_marks, passed
     

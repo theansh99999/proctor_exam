@@ -48,6 +48,9 @@ class Exam(Base):
     timer_type = Column(String, default="overall") # "overall" or "per_question"
     default_marks = Column(Float, default=1.0)
     default_negative_marks = Column(Float, default=0.0)
+    # IMPORTANT: passing_marks is stored as RAW MARKS, not percentage
+    # Example: For 100 total marks exam, passing_marks=40 means 40/100 marks (40% cut-off)
+    # Comparison: if submission.score >= exam.passing_marks: student_passed = True
     passing_marks = Column(Float, default=0.0)
 
     group = relationship("Group", back_populates="exams")
