@@ -2,8 +2,9 @@ from fastapi import APIRouter, Request, Depends, HTTPException, status, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session, joinedload
+from fastapi.concurrency import run_in_threadpool
 import models, database, auth
-import datetime
+from datetime import datetime, timezone
 import traceback
 
 router = APIRouter(prefix="/student", tags=["Student Interface"])
@@ -16,7 +17,7 @@ def get_student_notifications(db: Session = Depends(database.get_db), current_us
     group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
     group_ids = [gm.group_id for gm in group_memberships]
 
-    now = datetime.datetime.now()
+    now = datetime.now(timezone.utc)
     exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
 
     submissions_done = {s.exam_id for s in db.query(models.Submission).filter(models.Submission.student_id == current_user.id).all()}
@@ -67,7 +68,7 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     group_ids = [gm.group_id for gm in group_memberships]
 
     # Find exams for these groups
-    now = datetime.datetime.now()
+    now = datetime.now(timezone.utc)
     exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
     
     active_exams = []
@@ -160,7 +161,7 @@ def take_exam(exam_id: int, request: Request, db: Session = Depends(database.get
             return RedirectResponse(url="/student/dashboard", status_code=302)
 
         # Check time validity
-        now = datetime.datetime.now()
+        now = datetime.now(timezone.utc)
         if now < exam.start_time or now > exam.end_time:
             return RedirectResponse(url="/student/dashboard", status_code=302)
 
@@ -182,60 +183,64 @@ def take_exam(exam_id: int, request: Request, db: Session = Depends(database.get
         raise HTTPException(status_code=500, detail=f"Error loading exam: {str(e)}")
 
 @router.post("/submit_exam/{exam_id}")
-def submit_exam(exam_id: int, request: Request, form_data: dict = Form(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
-    exam_in = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
-    questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).all()
+async def submit_exam(exam_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
+    form_data = await request.form()  # ✅ Properly await form data
     
-    sub_in = models.Submission(exam_id=exam_id, student_id=current_user.id, score=0.0)
-    db.add(sub_in)
-    db.commit()
-    db.refresh(sub_in)
-
-    total_score = 0.0
-
-    for q in questions:
-        q_marks = q.marks if q.marks is not None else exam_in.default_marks
-        q_neg_marks = q.negative_marks if q.negative_marks is not None else exam_in.default_negative_marks
+    # Run all DB operations in threadpool (FastAPI handles automatically)
+    def process_submission():
+        exam_in = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+        questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).all()
         
-        selected_option_id = form_data.get(f"question_{q.id}")
-        is_correct = False
-        opt_val = None
-        if selected_option_id:
-            opt_val = int(selected_option_id)
-            option = next((o for o in q.options if o.id == opt_val), None)
-            if option and option.is_correct:
-                is_correct = True
-                total_score += q_marks
-            else:
-                total_score -= q_neg_marks
-                
-        ans = models.StudentAnswer(
-            submission_id=sub_in.id,
-            question_id=q.id,
-            selected_option_id=opt_val,
-            is_correct=is_correct
-        )
-        db.add(ans)
+        sub_in = models.Submission(exam_id=exam_id, student_id=current_user.id, score=0.0)
+        db.add(sub_in)
+        db.commit()
+        db.refresh(sub_in)
+
+        total_score = 0.0
+
+        for q in questions:
+            q_marks = q.marks if q.marks is not None else exam_in.default_marks
+            q_neg_marks = q.negative_marks if q.negative_marks is not None else exam_in.default_negative_marks
+            
+            selected_option_id = form_data.get(f"question_{q.id}")
+            is_correct = False
+            opt_val = None
+            if selected_option_id:
+                opt_val = int(selected_option_id)
+                option = next((o for o in q.options if o.id == opt_val), None)
+                if option and option.is_correct:
+                    is_correct = True
+                    total_score += q_marks
+                else:
+                    total_score -= q_neg_marks
+                    
+            ans = models.StudentAnswer(
+                submission_id=sub_in.id,
+                question_id=q.id,
+                selected_option_id=opt_val,
+                is_correct=is_correct
+            )
+            db.add(ans)
+        
+        sub_in.score = total_score
+        db.commit()
+        return exam_in, sub_in
     
-    sub_in.score = total_score
-    db.commit()
-    exam = exam_in
-    sub = sub_in
+    exam, sub = await run_in_threadpool(process_submission)
     
     # Broadcast to Teacher (non-blocking)
     if exam and exam.group:
-        import asyncio
         from ws_manager import manager
         teacher_id = exam.group.teacher_id
         passing_marks = exam.passing_marks or 0
         try:
-            asyncio.create_task(manager.send_personal_message({
+            await manager.send_personal_message({
                 "type": "live_submission",
                 "exam_id": exam.id,
                 "student_name": current_user.name,
                 "score": round(sub.score, 2),
                 "passed": sub.score >= passing_marks
-            }, teacher_id))
+            }, teacher_id)
         except Exception as ws_err:
             print(f"WebSocket broadcast error: {ws_err}")
 
@@ -256,7 +261,7 @@ def practice_exam(exam_id: int, request: Request, db: Session = Depends(database
         raise HTTPException(status_code=403, detail="Not assigned to this exam")
 
     # Only missed exams can be practiced (exam has ended)
-    now = datetime.datetime.now()
+    now = datetime.now(timezone.utc)
     if now <= exam.end_time:
         return RedirectResponse(url="/student/dashboard", status_code=302)
 
@@ -272,52 +277,60 @@ def practice_exam(exam_id: int, request: Request, db: Session = Depends(database
     })
 
 @router.post("/submit_practice/{exam_id}", response_class=HTMLResponse)
-def submit_practice(exam_id: int, request: Request, form_data: dict = Form(...), db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
-    exam_in = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
-    if not exam_in:
+async def submit_practice(exam_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
+    form_data = await request.form()  # ✅ Properly await form data
+    
+    # Run all DB operations in threadpool (FastAPI handles automatically)
+    def process_practice():
+        exam_in = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+        if not exam_in:
+            return None, None, None, None, None, None
+
+        questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).all()
+
+        total_score = 0.0
+        max_marks = 0.0
+        report_rows = []
+
+        for q in questions:
+            q_marks = q.marks if q.marks is not None else exam_in.default_marks
+            q_neg_marks = q.negative_marks if q.negative_marks is not None else exam_in.default_negative_marks
+            max_marks += q_marks
+
+            selected_option_id = form_data.get(f"question_{q.id}")
+            is_correct = False
+            selected_opt = None
+            earned = 0.0
+
+            if selected_option_id:
+                opt = next((o for o in q.options if o.id == int(selected_option_id)), None)
+                selected_opt = opt
+                if opt and opt.is_correct:
+                    is_correct = True
+                    total_score += q_marks
+                    earned = q_marks
+                else:
+                    total_score -= q_neg_marks
+                    earned = -q_neg_marks
+
+            report_rows.append({
+                "num": questions.index(q) + 1,
+                "text": q.text,
+                "marks": q_marks,
+                "options": q.options,
+                "selected_option": selected_opt,
+                "is_correct": is_correct,
+                "skipped": selected_option_id is None,
+                "earned": earned,
+            })
+
+        passing_marks = exam_in.passing_marks or 0.0
+        passed = total_score >= passing_marks
+        return exam_in, total_score, max_marks, report_rows, passing_marks, passed
+    
+    exam, total_score, max_marks, report_rows, passing_marks, passed = await run_in_threadpool(process_practice)
+    if not exam:
         raise HTTPException(status_code=404, detail="Exam not found")
-
-    questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).all()
-
-    total_score = 0.0
-    max_marks = 0.0
-    report_rows = []
-
-    for q in questions:
-        q_marks = q.marks if q.marks is not None else exam_in.default_marks
-        q_neg_marks = q.negative_marks if q.negative_marks is not None else exam_in.default_negative_marks
-        max_marks += q_marks
-
-        selected_option_id = form_data.get(f"question_{q.id}")
-        is_correct = False
-        selected_opt = None
-        earned = 0.0
-
-        if selected_option_id:
-            opt = next((o for o in q.options if o.id == int(selected_option_id)), None)
-            selected_opt = opt
-            if opt and opt.is_correct:
-                is_correct = True
-                total_score += q_marks
-                earned = q_marks
-            else:
-                total_score -= q_neg_marks
-                earned = -q_neg_marks
-
-        report_rows.append({
-            "num": questions.index(q) + 1,
-            "text": q.text,
-            "marks": q_marks,
-            "options": q.options,
-            "selected_option": selected_opt,
-            "is_correct": is_correct,
-            "skipped": selected_option_id is None,
-            "earned": earned,
-        })
-
-    passing_marks = exam_in.passing_marks or 0.0
-    passed = total_score >= passing_marks
-    exam = exam_in
 
     return templates.TemplateResponse(request=request, name="student/practice_result.html", context={
         "user": current_user,
@@ -374,27 +387,35 @@ class CheatFlagRequest(BaseModel):
     description: str
 
 @router.post("/api/cheat_flag")
-def log_cheat_flag(flag: CheatFlagRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
+async def log_cheat_flag(flag: CheatFlagRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
+    # Run DB operation in threadpool
+    def save_cheat_flag():
+        try:
+            new_flag = models.CheatFlag(
+                exam_id=flag.exam_id,
+                student_id=current_user.id,
+                description=flag.description
+            )
+            db.add(new_flag)
+            db.commit()
+            exam = db.query(models.Exam).filter(models.Exam.id == flag.exam_id).first()
+            return exam
+        except Exception as e:
+            print(f"Cheat flag DB error: {str(e)}")
+            raise
+    
     try:
-        new_flag = models.CheatFlag(
-            exam_id=flag.exam_id,
-            student_id=current_user.id,
-            description=flag.description
-        )
-        db.add(new_flag)
-        db.commit()
+        exam = await run_in_threadpool(save_cheat_flag)
         
         # Broadcast to Teacher (non-blocking)
-        exam = db.query(models.Exam).filter(models.Exam.id == flag.exam_id).first()
         if exam and exam.group:
-            import asyncio
             from ws_manager import manager
             teacher_id = exam.group.teacher_id
             try:
-                asyncio.create_task(manager.send_personal_message(
+                await manager.send_personal_message(
                     {"student_name": current_user.name, "description": flag.description, "exam_title": exam.title},
                     teacher_id
-                ))
+                )
             except Exception as ws_err:
                 print(f"WebSocket broadcast error: {ws_err}")
 
@@ -408,7 +429,7 @@ def practice_list(request: Request, db: Session = Depends(database.get_db), curr
     group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
     group_ids = [gm.group_id for gm in group_memberships]
     
-    now = datetime.datetime.now()
+    now = datetime.now(timezone.utc)
     exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
     
     practice_exams = [exam for exam in exams if now > exam.end_time]
@@ -424,7 +445,7 @@ def student_performance(request: Request, db: Session = Depends(database.get_db)
     group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
     group_ids = [gm.group_id for gm in group_memberships]
 
-    now = datetime.datetime.now()
+    now = datetime.now(timezone.utc)
     assigned_exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).order_by(models.Exam.start_time.desc()).all() if group_ids else []
 
     submissions = []

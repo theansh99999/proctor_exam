@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, func
 from sqlalchemy.orm import relationship
-import datetime
+from datetime import datetime, timezone
 from database import Base
 
 class User(Base):
@@ -84,7 +84,7 @@ class Submission(Base):
     exam_id = Column(Integer, ForeignKey("exams.id"))
     student_id = Column(Integer, ForeignKey("users.id"))
     score = Column(Float, index=True)
-    submitted_at = Column(DateTime, default=datetime.datetime.utcnow)
+    submitted_at = Column(DateTime, default=func.now())
 
     exam = relationship("Exam", back_populates="submissions")
     student = relationship("User", back_populates="submissions")
@@ -109,7 +109,7 @@ class CheatFlag(Base):
     id = Column(Integer, primary_key=True, index=True)
     exam_id = Column(Integer, ForeignKey("exams.id"))
     student_id = Column(Integer, ForeignKey("users.id"))
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp = Column(DateTime, default=func.now())
     description = Column(String)
     is_resolved = Column(Boolean, default=False)
 

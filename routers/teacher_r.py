@@ -3,7 +3,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 import models, database, auth
-import datetime
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/teacher", tags=["Teacher Dashboard"])
 templates = Jinja2Templates(directory="templates")
@@ -20,7 +20,7 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
     
     # Calculate Stats
-    now = datetime.datetime.now()
+    now = datetime.now(timezone.utc)
     active_count = len([e for e in exams if e.start_time <= now <= e.end_time])
     
     unique_students = set()
@@ -136,7 +136,7 @@ def create_group(name: str = Form(...), db: Session = Depends(database.get_db), 
 
 @router.get("/notifications", response_class=HTMLResponse)
 def view_notifications(request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_teacher)):
-    now = datetime.datetime.now()
+    now = datetime.now(timezone.utc)
     groups = db.query(models.Group).filter(models.Group.teacher_id == current_user.id).all()
     group_ids = [g.id for g in groups]
     
@@ -296,7 +296,7 @@ def view_student_profile(
         ).all()
         
     sub_map = {s.exam_id: s for s in submissions}
-    now = datetime.datetime.now()
+    now = datetime.now(timezone.utc)
     
     exam_details = []
     tests_taken = 0
