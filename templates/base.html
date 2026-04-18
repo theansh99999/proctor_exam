@@ -171,7 +171,12 @@
         async function fetchStudentNotifications() {
             try {
                 const response = await fetch('/student/notifications');
-                if (!response.ok) return;
+                if (!response.ok) {
+                    if (response.status === 401 && window.notificationInterval) {
+                        clearInterval(window.notificationInterval);
+                    }
+                    return;
+                }
                 const data = await response.json();
                 
                 const notifs = data.notifications || [];
@@ -227,7 +232,7 @@
         // Fetch on load and every 30 seconds
         document.addEventListener('DOMContentLoaded', () => {
             fetchStudentNotifications();
-            setInterval(fetchStudentNotifications, 30000);
+            window.notificationInterval = setInterval(fetchStudentNotifications, 30000);
         });
     </script>
     {% endif %}

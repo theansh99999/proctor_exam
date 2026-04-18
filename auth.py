@@ -87,3 +87,16 @@ def require_student(request: Request, db: Session = Depends(database.get_db)):
     if user.role != "student":
         raise HTTPException(status_code=403, detail="Not authorized as student")
     return user
+
+def require_auth_api(request: Request, db: Session = Depends(database.get_db)):
+    user = get_current_user_cookie(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return user
+
+def require_student_api(request: Request, db: Session = Depends(database.get_db)):
+    user = require_auth_api(request, db)
+    if user.role != "student":
+        raise HTTPException(status_code=403, detail="Not authorized as student")
+    return user
+

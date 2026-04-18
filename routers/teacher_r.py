@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends, Form, BackgroundTasks, HTTPExce
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.orm import Session, joinedload
-import models, database, auth
+import models, database, auth, email_service
 from datetime import datetime, timezone
 
 router = APIRouter(prefix="/teacher", tags=["Teacher Dashboard"])
@@ -496,12 +496,6 @@ class ExamEditAPI(BaseModel):
             total += marks
         return total
 
-import time
-
-def notify_students_via_email(group_members, exam_title):
-    for member in group_members:
-        time.sleep(2) # Fake heavy network task
-        print(f"\n[BACKGROUND EMAIL SERVICE] 📧 Sent Exam assignment email to {member.student_email} for: '{exam_title}'\n")
 
 @router.post("/api/create_exam")
 def api_create_exam(exam_data: ExamCreateAPI, background_tasks: BackgroundTasks, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_teacher)):
@@ -557,7 +551,21 @@ def api_create_exam(exam_data: ExamCreateAPI, background_tasks: BackgroundTasks,
     db.commit()
     
     members = db.query(models.GroupMember).filter(models.GroupMember.group_id == exam_data.group_id).all()
-    background_tasks.add_task(notify_students_via_email, members, exam_data.title)
+    
+    # Fetch group info for the email
+    group = db.query(models.Group).filter(models.Group.id == exam_data.group_id).first()
+    group_name = group.name if group else "Your Group"
+
+    background_tasks.add_task(
+        email_service.notify_students_exam_assigned,
+        members,
+        exam_data.title,
+        group_name,
+        current_user.name,
+        new_exam.start_time,
+        new_exam.end_time,
+        new_exam.duration_minutes,
+    )
 
     return {"status": "success"}
 

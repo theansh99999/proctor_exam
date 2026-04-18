@@ -27,7 +27,7 @@ def calculate_exam_max_marks(questions: list, default_marks: float) -> float:
 
 # ── Notification API ──────────────────────────────────────────────────────────
 @router.get("/notifications", response_class=JSONResponse)
-def get_student_notifications(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
+def get_student_notifications(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student_api)):
     """Returns structured notification data for the logged-in student as JSON."""
     group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
     group_ids = [gm.group_id for gm in group_memberships]
@@ -377,42 +377,6 @@ async def submit_practice(exam_id: int, request: Request, db: Session = Depends(
         "report_rows": report_rows,
     })
 
-@router.get("/analysis/{exam_id}", response_class=HTMLResponse)
-def view_exam_analysis(exam_id: int, request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
-    exam = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
-    if not exam:
-        raise HTTPException(status_code=404, detail="Exam not found")
-        
-    submission = db.query(models.Submission).filter(models.Submission.exam_id == exam_id, models.Submission.student_id == current_user.id).first()
-    if not submission:
-        raise HTTPException(status_code=403, detail="You have not submitted this exam yet")
-        
-    answers = db.query(models.StudentAnswer).options(
-        joinedload(models.StudentAnswer.question).joinedload(models.Question.options),
-        joinedload(models.StudentAnswer.selected_option)
-    ).filter(models.StudentAnswer.submission_id == submission.id).all()
-    
-    analysis_data = []
-    for ans in answers:
-        q = ans.question
-        correct_options = [opt for opt in q.options if opt.is_correct]
-        analysis_data.append({
-            "question_text": q.text,
-            "your_answer": ans.selected_option.text if ans.selected_option else "Skipped",
-            "is_correct": ans.is_correct,
-            "correct_answers": [opt.text for opt in correct_options]
-        })
-        
-    questions = db.query(models.Question).filter(models.Question.exam_id == exam_id).all()
-    max_marks = calculate_exam_max_marks(questions, exam.default_marks)  # Using helper function
-    
-    return templates.TemplateResponse(request=request, name="student/exam_analysis.html", context={
-        "user": current_user,
-        "exam": exam,
-        "submission": submission,
-        "analysis_data": analysis_data,
-        "max_marks": max_marks
-    })
 
 from pydantic import BaseModel
 
@@ -421,7 +385,7 @@ class CheatFlagRequest(BaseModel):
     description: str
 
 @router.post("/api/cheat_flag")
-async def log_cheat_flag(flag: CheatFlagRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student)):
+async def log_cheat_flag(flag: CheatFlagRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_student_api)):
     # Run DB operation in threadpool
     def save_cheat_flag():
         try:
