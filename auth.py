@@ -13,10 +13,9 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
-    if os.getenv("ENV", "development").lower() == "production":
-        raise Exception("CRITICAL: SECRET_KEY environment variable is not set in production!")
-    print("WARNING: No SECRET_KEY set. Using default insecure key for development.")
-    SECRET_KEY = "supersecretkey"
+    raise Exception("CRITICAL: SECRET_KEY environment variable is not set! Please set it in .env file or system environment.")
+if len(SECRET_KEY) < 32:
+    raise Exception("ERROR: SECRET_KEY must be at least 32 characters long for security!")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "120"))
 

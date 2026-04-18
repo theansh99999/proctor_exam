@@ -90,6 +90,12 @@
                                         <p class="text-muted small mb-0 fw-medium">All caught up! No active alerts.</p>
                                     </div>
                                 {% endif %}
+                                <div class="p-3 border-top d-flex gap-2 justify-content-between" style="background-color: var(--surface-color);">
+                                    <a href="/teacher/notifications" class="btn btn-sm btn-outline-primary fw-bold rounded-pill flex-grow-1 py-2">View All</a>
+                                    <form method="POST" action="/teacher/notifications/clear" style="flex-grow: 1;" onsubmit="return confirm('Clear all notifications?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger fw-bold rounded-pill w-100 py-2">Clear All</button>
+                                    </form>
+                                </div>
                             </ul>
 
                             {% elif user.role == "student" %}
