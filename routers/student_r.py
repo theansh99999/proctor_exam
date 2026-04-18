@@ -32,7 +32,7 @@ def get_student_notifications(db: Session = Depends(database.get_db), current_us
     group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
     group_ids = [gm.group_id for gm in group_memberships]
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
 
     submissions_done = {s.exam_id for s in db.query(models.Submission).filter(models.Submission.student_id == current_user.id).all()}
@@ -83,7 +83,7 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     group_ids = [gm.group_id for gm in group_memberships]
 
     # Find exams for these groups
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
     
     active_exams = []
@@ -190,7 +190,7 @@ def take_exam(exam_id: int, request: Request, db: Session = Depends(database.get
             return RedirectResponse(url="/student/dashboard", status_code=302)
 
         # Check time validity
-        now = datetime.now(timezone.utc)
+        now = datetime.now()
         if now < exam.start_time or now > exam.end_time:
             return RedirectResponse(url="/student/dashboard", status_code=302)
 
@@ -293,7 +293,7 @@ def practice_exam(exam_id: int, request: Request, db: Session = Depends(database
         raise HTTPException(status_code=403, detail="Not assigned to this exam")
 
     # Only missed exams can be practiced (exam has ended)
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     if now <= exam.end_time:
         return RedirectResponse(url="/student/dashboard", status_code=302)
 
@@ -463,7 +463,7 @@ def practice_list(request: Request, db: Session = Depends(database.get_db), curr
     group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
     group_ids = [gm.group_id for gm in group_memberships]
     
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
     
     practice_exams = [exam for exam in exams if now > exam.end_time]
@@ -479,7 +479,7 @@ def student_performance(request: Request, db: Session = Depends(database.get_db)
     group_memberships = db.query(models.GroupMember).filter(models.GroupMember.student_email == current_user.email).all()
     group_ids = [gm.group_id for gm in group_memberships]
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     assigned_exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).order_by(models.Exam.start_time.desc()).all() if group_ids else []
 
     submissions = []

@@ -23,3 +23,11 @@ app.include_router(websocket_r.router)
 @app.get("/")
 def home(request: Request):
     return RedirectResponse(url="/login")
+
+@app.get("/run-tests")
+def run_tests_endpoint():
+    from fastapi.responses import HTMLResponse
+    # We must import inside the function to avoid circular imports during app init
+    from testing.test_runner import run_all_tests_and_get_report
+    html_content = run_all_tests_and_get_report()
+    return HTMLResponse(content=html_content, status_code=200)

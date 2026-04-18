@@ -5,3 +5,5 @@ venv/
 future_txt
 commit.txt
 analysis.txt
+testing/
+report.html

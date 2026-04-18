@@ -35,7 +35,7 @@ def dashboard(request: Request, db: Session = Depends(database.get_db), current_
     exams = db.query(models.Exam).filter(models.Exam.group_id.in_(group_ids)).all() if group_ids else []
     
     # Calculate Stats
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     active_count = len([e for e in exams if e.start_time <= now <= e.end_time])
     
     unique_students = set()
@@ -163,7 +163,7 @@ def create_group(name: str = Form(...), db: Session = Depends(database.get_db), 
 
 @router.get("/notifications", response_class=HTMLResponse)
 def view_notifications(request: Request, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.require_teacher)):
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     groups = db.query(models.Group).filter(models.Group.teacher_id == current_user.id).all()
     group_ids = [g.id for g in groups]
     
@@ -323,7 +323,7 @@ def view_student_profile(
         ).all()
         
     sub_map = {s.exam_id: s for s in submissions}
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     
     exam_details = []
     tests_taken = 0
@@ -518,12 +518,12 @@ def api_create_exam(exam_data: ExamCreateAPI, background_tasks: BackgroundTasks,
     
     # parse datetime
     try:
-        st = datetime.datetime.fromisoformat(exam_data.start_time.replace('Z', '+00:00'))
-        et = datetime.datetime.fromisoformat(exam_data.end_time.replace('Z', '+00:00'))
+        st = datetime.fromisoformat(exam_data.start_time.replace('Z', '+00:00'))
+        et = datetime.fromisoformat(exam_data.end_time.replace('Z', '+00:00'))
     except Exception:
         # Fallback simplistic parsing if needed
-        st = datetime.datetime.strptime(exam_data.start_time, "%Y-%m-%dT%H:%M")
-        et = datetime.datetime.strptime(exam_data.end_time, "%Y-%m-%dT%H:%M")
+        st = datetime.strptime(exam_data.start_time, "%Y-%m-%dT%H:%M")
+        et = datetime.strptime(exam_data.end_time, "%Y-%m-%dT%H:%M")
 
     new_exam = models.Exam(
         title=exam_data.title,
@@ -790,11 +790,11 @@ def api_edit_exam(
 
     exam.title = exam_data.title
     try:
-        exam.start_time = datetime.datetime.fromisoformat(exam_data.start_time.replace('Z', '+00:00'))
-        exam.end_time = datetime.datetime.fromisoformat(exam_data.end_time.replace('Z', '+00:00'))
+        exam.start_time = datetime.fromisoformat(exam_data.start_time.replace('Z', '+00:00'))
+        exam.end_time = datetime.fromisoformat(exam_data.end_time.replace('Z', '+00:00'))
     except Exception:
-        exam.start_time = datetime.datetime.strptime(exam_data.start_time, "%Y-%m-%dT%H:%M")
-        exam.end_time = datetime.datetime.strptime(exam_data.end_time, "%Y-%m-%dT%H:%M")
+        exam.start_time = datetime.strptime(exam_data.start_time, "%Y-%m-%dT%H:%M")
+        exam.end_time = datetime.strptime(exam_data.end_time, "%Y-%m-%dT%H:%M")
     
     exam.duration_minutes = exam_data.duration_minutes
     exam.timer_type = exam_data.timer_type

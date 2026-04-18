@@ -427,6 +427,7 @@
     let warningCount = 0;
     const MAX_WARNINGS = 5;
     let tabSwitchWarningShown = false; // Prevent multiple simultaneous warnings
+    let examActive = false; // Prevents logging cheats during permission checks
 
     // Show warning modal
     function showWarningModal(description) {
@@ -673,12 +674,11 @@
             examContent.classList.remove('blurred');
             videoContainer.style.display = 'block';
 
+            examActive = true; // Exam is officially active now
             startTimer();
         } catch (err) {
             alert("Camera and Microphone permissions are required to start the exam. Please allow access and try again.");
             console.error(err);
-            // Log if denied explicitly
-            logCheat("Camera/Microphone access was denied or unavailable.");
         }
     });
 
@@ -688,8 +688,9 @@
 
     // Detect tab/window visibility changes (tab switch)
     document.addEventListener("visibilitychange", function () {
+        if (!examActive) return;
         const now = Date.now();
-        if (document.hidden && overlay.style.display === 'none' && (now - lastViolationTime) > VIOLATION_COOLDOWN) {
+        if (document.hidden && (now - lastViolationTime) > VIOLATION_COOLDOWN) {
             lastViolationTime = now;
             logCheat("Tab switched or window minimized.");
         }
@@ -697,8 +698,9 @@
 
     // Detect window blur (loses focus to another app)
     window.addEventListener("blur", function () {
+        if (!examActive) return;
         const now = Date.now();
-        if (overlay.style.display === 'none' && (now - lastViolationTime) > VIOLATION_COOLDOWN) {
+        if ((now - lastViolationTime) > VIOLATION_COOLDOWN) {
             lastViolationTime = now;
             logCheat("Window lost focus - switched to another application.");
         }
@@ -706,19 +708,20 @@
 
     // Detect page visibility state changes (more reliable)
     document.addEventListener("pagehide", function () {
-        if (overlay.style.display === 'none') {
+        if (examActive) {
             logCheat("Attempted to navigate away from exam.");
         }
     });
 
-    document.addEventListener("beforeunload", function () {
-        if (overlay.style.display === 'none') {
+    document.addEventListener("beforeunload", function (e) {
+        if (examActive) {
             logCheat("Attempted to leave or reload exam page.");
         }
     });
 
     document.addEventListener('fullscreenchange', () => {
-        if (!document.fullscreenElement && overlay.style.display === 'none') {
+        if (!examActive) return;
+        if (!document.fullscreenElement) {
             logCheat("Exited fullscreen mode.");
             // Blur content
             examContent.classList.add('blurred');
