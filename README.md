@@ -276,4 +276,4 @@ This project is for educational purposes. Feel free to use, modify, and distribu
 
 ---
 
-<p align="center">Built with ❤️ using FastAPI + MediaPipe</p>
+<p align="center">Built with ❤️ using FastAPI + MediaPipe By Ansh Kumar Rai</p>
