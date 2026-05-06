@@ -458,46 +458,34 @@
 
     // Force-submit the exam (only when violation limit reached)
     function forceSubmitExam() {
-        if (isSubmitting) return; // Prevent double-submit
+        if (isSubmitting) return;
         isSubmitting = true;
-        examActive = false; // Stop further violation detection
+        examActive = false;
         document.getElementById('exam_form').submit();
     }
 
-    // Log flags to server — only detects & reports, does NOT submit unless limit reached
-    async function logCheat(description) {
-        if (!examActive || isSubmitting) return; // Don't log after exam ended
+    // Pure client-side violation handler — NO DB, NO API calls
+    // Counts violations in memory, shows warning modal, auto-submits on limit
+    function logCheat(description) {
+        if (!examActive || isSubmitting) return;
 
-        // ✅ Send violation to backend FIRST (non-blocking)
-        fetch('/student/api/cheat_flag', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ exam_id: {{ exam.id }}, description: description }),
-            credentials: 'include'
-        }).catch(err => console.error('Failed to log violation:', err));
-
-        // ✅ Increment count THEN check limit
         warningCount++;
         document.getElementById('violation-count').innerText = warningCount;
         document.getElementById('max-violations').innerText = MAX_WARNINGS;
+        document.getElementById('warning-message').innerText = description;
 
         if (warningCount >= MAX_WARNINGS) {
-            // ✅ Limit reached — NOW auto-submit
-            document.getElementById('warning-message').innerText = description;
+            // Limit reached — auto-submit
             document.getElementById('remaining-warnings').innerText = 'Violation limit reached! Auto-submitting exam...';
             document.getElementById('warning-modal').classList.add('show');
-            // Give student 2 seconds to see the message, then submit
             setTimeout(() => forceSubmitExam(), 2000);
-            return;
+        } else {
+            // Show warning only
+            const remaining = MAX_WARNINGS - warningCount;
+            document.getElementById('remaining-warnings').innerText =
+                `${remaining} more violation${remaining > 1 ? 's' : ''} will auto-submit your exam.`;
+            document.getElementById('warning-modal').classList.add('show');
         }
-
-        // ✅ Below limit — just show warning, do NOT submit
-        const remaining = MAX_WARNINGS - warningCount;
-        document.getElementById('warning-message').innerText = description;
-        document.getElementById('remaining-warnings').innerText =
-            `${remaining} more violation${remaining > 1 ? 's' : ''} will auto-submit your exam.`;
-        document.getElementById('warning-modal').classList.add('show');
-        tabSwitchWarningShown = true;
     }
 
     // Auto-fullscreen function
@@ -529,14 +517,14 @@
                         window.noFaceTimer = setTimeout(() => {
                             logCheat("No face detected in webcam.");
                             window.noFaceTimer = null;
-                        }, 3000);
+                        }, 6000);
                     }
                 } else if (detections.length > 1) {
                     if (!window.multipleFacesTimer) {
                         window.multipleFacesTimer = setTimeout(() => {
                             logCheat("Multiple faces detected in frame.");
                             window.multipleFacesTimer = null;
-                        }, 2000);
+                        }, 4000);
                     }
                 } else {
                     // Check head pose (Looking away - extreme left/right or up/down)
@@ -562,9 +550,9 @@
                             if (noseRatio < 0.05) {
                                 if (!window.extremeLeftTimer) {
                                     window.extremeLeftTimer = setTimeout(() => {
-                                        logCheat("Extreme left head turn detected - possible cheating attempt.");
+                                        logCheat("Extreme left head turn detected.");
                                         window.extremeLeftTimer = null;
-                                    }, 1500);
+                                    }, 3000);
                                 }
                             } else {
                                 clearTimeout(window.extremeLeftTimer);
@@ -575,9 +563,9 @@
                             if (noseRatio > 0.95) {
                                 if (!window.extremeRightTimer) {
                                     window.extremeRightTimer = setTimeout(() => {
-                                        logCheat("Extreme right head turn detected - possible cheating attempt.");
+                                        logCheat("Extreme right head turn detected.");
                                         window.extremeRightTimer = null;
-                                    }, 1500);
+                                    }, 3000);
                                 }
                             } else {
                                 clearTimeout(window.extremeRightTimer);
@@ -590,7 +578,7 @@
                                     window.lookAwayTimer = setTimeout(() => {
                                         logCheat("Looking away from screen detected.");
                                         window.lookAwayTimer = null;
-                                    }, 2000);
+                                    }, 5000);
                                 }
                             } else {
                                 clearTimeout(window.lookAwayTimer);
@@ -609,9 +597,9 @@
                         if (verticalRatio > 2.5) {
                             if (!window.lookDownTimer) {
                                 window.lookDownTimer = setTimeout(() => {
-                                    logCheat("Looking down excessively - possible cheating with notes.");
+                                    logCheat("Looking down excessively.");
                                     window.lookDownTimer = null;
-                                }, 2000);
+                                }, 5000);
                             }
                         } else {
                             clearTimeout(window.lookDownTimer);
@@ -628,6 +616,7 @@
         }
         window.requestAnimationFrame(predictWebcam);
     }
+
 
     // Audio Detection (Talking)
     let audioContext;
@@ -653,13 +642,13 @@
             }
             const average = values / array.length;
 
-            // Threshold for talking/noise
-            if (average > 35) { // Sensitivity threshold
+            // Threshold for talking/noise — 55 filters out ambient room noise
+            if (average > 55) { // Raised from 35 (was too sensitive — ambient noise was triggering)
                 if (!window.talkingTimer) {
                     window.talkingTimer = setTimeout(() => {
                         logCheat("Talking or background noise detected.");
                         window.talkingTimer = null;
-                    }, 2500); // Trigger if noise persists for 2.5s
+                    }, 5000); // Raised from 2.5s → 5s: must be sustained noise to log
                 }
             } else {
                 clearTimeout(window.talkingTimer);
