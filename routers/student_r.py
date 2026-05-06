@@ -217,6 +217,16 @@ async def submit_exam(exam_id: int, request: Request, db: Session = Depends(data
     
     # Run all DB operations in threadpool (FastAPI handles automatically)
     def process_submission():
+        # ✅ DUPLICATE SUBMISSION GUARD — check before creating anything
+        existing_sub = db.query(models.Submission).filter(
+            models.Submission.exam_id == exam_id,
+            models.Submission.student_id == current_user.id
+        ).first()
+        if existing_sub:
+            # Already submitted — return existing data silently (idempotent)
+            exam_in = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
+            return exam_in, existing_sub
+
         exam_in = db.query(models.Exam).filter(models.Exam.id == exam_id).first()
         questions = db.query(models.Question).options(joinedload(models.Question.options)).filter(models.Question.exam_id == exam_id).all()
         

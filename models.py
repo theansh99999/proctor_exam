@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, func
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, func, UniqueConstraint
 from sqlalchemy.orm import relationship
 import datetime
 from datetime import datetime, timezone
@@ -83,6 +83,9 @@ class Option(Base):
 
 class Submission(Base):
     __tablename__ = "submissions"
+    __table_args__ = (
+        UniqueConstraint("exam_id", "student_id", name="uq_submission_exam_student"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     exam_id = Column(Integer, ForeignKey("exams.id"))
@@ -93,6 +96,7 @@ class Submission(Base):
     exam = relationship("Exam", back_populates="submissions")
     student = relationship("User", back_populates="submissions")
     answers = relationship("StudentAnswer", back_populates="submission", cascade="all, delete-orphan")
+
 
 class StudentAnswer(Base):
     __tablename__ = "student_answers"
