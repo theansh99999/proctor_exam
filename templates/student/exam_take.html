@@ -429,20 +429,8 @@
     let tabSwitchWarningShown = false; // Prevent multiple simultaneous warnings
     let examActive = false; // Prevents logging cheats during permission checks
 
-    // Show warning modal
-    function showWarningModal(description) {
-        warningCount++;
-        document.getElementById('warning-message').innerText = description;
-        document.getElementById('violation-count').innerText = warningCount;
-        const remaining = MAX_WARNINGS - warningCount;
-        if (remaining > 0) {
-            document.getElementById('remaining-warnings').innerText = `${remaining} more violation${remaining > 1 ? 's' : ''} will auto-submit your exam.`;
-        } else {
-            document.getElementById('remaining-warnings').innerText = 'This is your last violation!';
-        }
-        document.getElementById('warning-modal').classList.add('show');
-        tabSwitchWarningShown = true;
-    }
+    // (violation modal is shown directly inside logCheat)
+
 
     // AI Initialization
     async function initializeVision() {
@@ -465,30 +453,51 @@
 
     initializeVision();
 
-    // Log flags to server
+    // Guard against double submission
+    let isSubmitting = false;
+
+    // Force-submit the exam (only when violation limit reached)
+    function forceSubmitExam() {
+        if (isSubmitting) return; // Prevent double-submit
+        isSubmitting = true;
+        examActive = false; // Stop further violation detection
+        document.getElementById('exam_form').submit();
+    }
+
+    // Log flags to server — only detects & reports, does NOT submit unless limit reached
     async function logCheat(description) {
-        if (warningCount >= MAX_WARNINGS) {
-            alert('Maximum violations reached. Auto-submitting exam...');
-            document.getElementById('exam_form').submit();
-            return;
-        }
+        if (!examActive || isSubmitting) return; // Don't log after exam ended
 
-        showWarningModal(description);
-
-        // Send to backend without blocking
-        await fetch('/student/api/cheat_flag', {
+        // ✅ Send violation to backend FIRST (non-blocking)
+        fetch('/student/api/cheat_flag', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ exam_id: {{ exam.id }}, description: description }),
             credentials: 'include'
         }).catch(err => console.error('Failed to log violation:', err));
 
+        // ✅ Increment count THEN check limit
+        warningCount++;
+        document.getElementById('violation-count').innerText = warningCount;
+        document.getElementById('max-violations').innerText = MAX_WARNINGS;
+
         if (warningCount >= MAX_WARNINGS) {
-            setTimeout(() => {
-                alert('Maximum violations reached. Auto-submitting exam...');
-                document.getElementById('exam_form').submit();
-            }, 1000);
+            // ✅ Limit reached — NOW auto-submit
+            document.getElementById('warning-message').innerText = description;
+            document.getElementById('remaining-warnings').innerText = 'Violation limit reached! Auto-submitting exam...';
+            document.getElementById('warning-modal').classList.add('show');
+            // Give student 2 seconds to see the message, then submit
+            setTimeout(() => forceSubmitExam(), 2000);
+            return;
         }
+
+        // ✅ Below limit — just show warning, do NOT submit
+        const remaining = MAX_WARNINGS - warningCount;
+        document.getElementById('warning-message').innerText = description;
+        document.getElementById('remaining-warnings').innerText =
+            `${remaining} more violation${remaining > 1 ? 's' : ''} will auto-submit your exam.`;
+        document.getElementById('warning-modal').classList.add('show');
+        tabSwitchWarningShown = true;
     }
 
     // Auto-fullscreen function
@@ -823,9 +832,7 @@
             if (diff <= 0) {
                 document.getElementById('timer_display').innerText = "00:00";
                 document.getElementById('timer_display').style.color = "red";
-                if (warningCount < MAX_WARNINGS) {
-                    document.getElementById('exam_form').submit();
-                }
+                forceSubmitExam(); // ✅ Uses guard — won't double-submit if already submitting
                 return;
             }
 
