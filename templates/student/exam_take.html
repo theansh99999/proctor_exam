@@ -812,7 +812,8 @@
     // --- End Navigator Palette ---
 
     // Timer Logic
-    const endTime = new Date("{{ exam.end_time.isoformat() }}");
+    // ✅ Unix timestamp in ms — timezone-safe (no isoformat timezone ambiguity)
+    const endTime = new Date({{ (exam.end_time.timestamp() * 1000) | int }});
     function startTimer() {
         function updateTimer() {
             const now = new Date();
