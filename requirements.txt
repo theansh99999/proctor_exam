@@ -55,3 +55,8 @@ uvicorn==0.44.0
 watchfiles==1.1.1
 websockets==16.0
 gunicorn
+
+# ── Google Drive Upload (drive_utils.py) ───────────────────────────────────────
+google-api-python-client
+google-auth
+google-auth-httplib2
