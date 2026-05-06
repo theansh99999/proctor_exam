@@ -31,3 +31,6 @@ def run_tests_endpoint():
     from testing.test_runner import run_all_tests_and_get_report
     html_content = run_all_tests_and_get_report()
     return HTMLResponse(content=html_content, status_code=200)
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=10000)
