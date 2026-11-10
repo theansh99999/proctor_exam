@@ -27,8 +27,12 @@ def home(request: Request):
 @app.get("/run-tests")
 def run_tests_endpoint():
     from fastapi.responses import HTMLResponse
-    # We must import inside the function to avoid circular imports during app init
-    from testing.test_runner import run_all_tests_and_get_report
+    try:
+        # We must import inside the function to avoid circular imports during app init
+        from testing.test_runner import run_all_tests_and_get_report
+    except ModuleNotFoundError:
+        # The testing/ suite is not part of the deployed build (gitignored locally)
+        return HTMLResponse(content="<h1>Test suite not available in this deployment</h1>", status_code=503)
     html_content = run_all_tests_and_get_report()
     return HTMLResponse(content=html_content, status_code=200)
 if __name__ == "__main__":
