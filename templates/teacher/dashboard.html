@@ -477,7 +477,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // Live Alerts WebSocket
-    const wsUrl = `ws://${window.location.host}/ws/teacher/{{ user.id }}`;
+    // Use wss:// on HTTPS pages (ws:// is blocked as mixed content)
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = `${wsProtocol}://${window.location.host}/ws/teacher/{{ user.id }}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onmessage = function(event) {
