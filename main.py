@@ -40,6 +40,14 @@ if not IS_PRODUCTION and not os.getenv("TESTING", ""):
         models.Base.metadata.create_all(bind=engine)
     except Exception as e:
         logger.warning("[STARTUP_WARN] Could not auto-create tables: %s", e)
+    # Apply pending additive schema migrations (idempotent; tracks applied
+    # versions in schema_migrations). Required on hosts without shell access
+    # so existing databases gain new columns/tables after each deploy.
+    try:
+        from migrations import run_migrations
+        run_migrations.run_upgrade(engine, confirm=True)
+    except Exception as e:
+        logger.warning("[STARTUP_WARN] Could not apply schema migrations: %s", e)
 
 
 @asynccontextmanager
