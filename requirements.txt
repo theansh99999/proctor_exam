@@ -57,6 +57,7 @@ websockets==16.0
 gunicorn
 redis>=5.0.0
 slowapi>=0.1.9
+itsdangerous>=2.1.0
 
 # ── Google Drive Upload (drive_utils.py) ───────────────────────────────────────
 google-api-python-client
