@@ -5,6 +5,7 @@
 </p>
 
 <p align="center">
+  <a href="https://exam-proctor-cl7j.onrender.com"><img src="https://img.shields.io/badge/Live%20Demo-exam--proctor--cl7j.onrender.com-46E3B7?logo=render&logoColor=white" alt="Live Demo"></a>
   <img src="https://img.shields.io/badge/FastAPI-0.135-009688?logo=fastapi&logoColor=white" alt="FastAPI">
   <img src="https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/PostgreSQL-15+-336791?logo=postgresql&logoColor=white" alt="PostgreSQL">
@@ -12,6 +13,19 @@
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white" alt="GitHub Actions">
 </p>
+
+<p align="center">
+  🌐 <strong>Live Website:</strong> <a href="https://exam-proctor-cl7j.onrender.com" target="_blank">https://exam-proctor-cl7j.onrender.com</a>
+</p>
+
+---
+
+## 🌐 Live Deployment
+
+The complete ExamProctor platform is deployed live on Render:
+- **Production URL**: [https://exam-proctor-cl7j.onrender.com](https://exam-proctor-cl7j.onrender.com)
+- **Liveness Probe**: [https://exam-proctor-cl7j.onrender.com/health](https://exam-proctor-cl7j.onrender.com/health)
+- **Readiness Probe**: [https://exam-proctor-cl7j.onrender.com/health/ready](https://exam-proctor-cl7j.onrender.com/health/ready)
 
 ---
 
