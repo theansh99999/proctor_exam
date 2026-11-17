@@ -23,6 +23,7 @@ from time_utils import utc_now
 # Migration modules in exact sequential execution order
 MIGRATION_STEPS = [
     ("phase_1_foundation", "migrations.migrate_phase1_foundation", "Phase 1: Foundation, Organizations, Multi-purpose Assessments"),
+    ("group_members_student_id", "migrations.migrate_group_members", "Group Members: relational student_id column and backfill"),
     ("phase_2_assignments", "migrations.migrate_phase2_assignments", "Phase 2: Candidate and Group Assignments & Scheduling"),
     ("phase_3_question_bank", "migrations.migrate_phase3_question_bank", "Phase 3: Centralized Question Bank & Six Question Types"),
     ("phase_4_candidate_engine", "migrations.migrate_phase4_candidate_engine", "Phase 4: Candidate Examination Flow, Multi-attempt Sessions"),
