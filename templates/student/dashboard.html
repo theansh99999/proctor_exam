@@ -71,7 +71,7 @@
                         <h5 class="card-title fw-bold text-success">{{ exam.title }}</h5>
                         <p class="mb-1 text-muted small">Duration: {{ exam.duration_minutes }} min</p>
                         <p class="mb-3 text-muted small">Ends: {{ exam.end_time.strftime('%H:%M %d %b') }}</p>
-                        <a href="/student/take_exam/{{ exam.id }}" class="btn btn-success w-100 fw-bold">Start Now &rarr;</a>
+                        <a href="/student/instructions/{{ exam.id }}" class="btn btn-success w-100 fw-bold">Instructions & Start &rarr;</a>
                     </div>
                 </div>
             </div>
@@ -106,21 +106,21 @@
                             <h5 class="card-title fw-bold text-primary mb-0" style="color: var(--primary-color) !important;">{{ exam.title }}</h5>
                             <span class="badge bg-warning text-body-emphasis rounded-pill fw-bold">Upcoming</span>
                         </div>
-                        
+
                         <div class="mb-4">
                             <div class="d-flex align-items-center mb-2 text-muted">
-                                <span class="me-2" style="font-size: 1.1rem;">📅</span> 
+                                <span class="me-2" style="font-size: 1.1rem;">📅</span>
                                 <span class="small fw-medium">{{ exam.start_time.strftime('%A, %b %d') }}</span>
                             </div>
                             <div class="d-flex align-items-center mb-2 text-muted">
-                                <span class="me-2" style="font-size: 1.1rem;">⏰</span> 
+                                <span class="me-2" style="font-size: 1.1rem;">⏰</span>
                                 <span class="small fw-medium">{{ exam.start_time.strftime('%I:%M %p') }}</span>
                             </div>
                             <div class="d-flex align-items-center text-muted">
-                                <span class="me-2" style="font-size: 1.1rem;">⏳</span> 
+                                <span class="me-2" style="font-size: 1.1rem;">⏳</span>
                                 <span class="small fw-medium">{{ exam.duration_minutes }} Mins Duration</span>
                             </div>
-                            
+
                             <div class="p-2 border border-warning border-opacity-25 rounded bg-warning bg-opacity-10 text-center mt-3 shadow-sm">
                                 <div class="text-warning text-uppercase fw-bold mb-1" style="letter-spacing: 1.5px; font-size: 0.65rem;">Starts In</div>
                                 <div class="countdown-timer fw-bold text-body-emphasis fs-5" style="font-variant-numeric: tabular-nums;" data-start="{{ exam.start_time.isoformat() }}" data-exam-id="{{ exam.id }}">
@@ -166,7 +166,7 @@
                 </select>
             </div>
         </div>
-        
+
         <div id="past-exams-container" class="row">
             {% for item in past_exams %}
             {% set passed_val = item.exam.passing_marks or 0 %}
@@ -325,18 +325,18 @@
     function updateCountdowns() {
         const timers = document.querySelectorAll('.countdown-timer');
         const now = new Date().getTime();
-        
+
         timers.forEach(timer => {
             let timeStr = timer.getAttribute('data-start');
             let examId = timer.getAttribute('data-exam-id');
             const startTime = new Date(timeStr).getTime();
             const distance = startTime - now;
-            
+
             if (distance < 0) {
                 timer.innerHTML = "✅ Live Now! Refreshing...";
                 timer.classList.remove('text-body-emphasis', 'text-warning');
                 timer.classList.add('text-success');
-                
+
                 // Flag to prevent multiple reloads
                 if (!timer.dataset.reloading) {
                     timer.dataset.reloading = "true";
@@ -344,20 +344,20 @@
                 }
                 return;
             }
-            
+
             const days = Math.floor(distance / (1000 * 60 * 60 * 24));
             const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-            
+
             let display = "";
             if (days > 0) display += `${days}D `;
             display += `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            
+
             timer.innerHTML = display;
         });
     }
-    
+
     updateCountdowns();
     setInterval(updateCountdowns, 1000);
 
@@ -372,14 +372,14 @@
         const searchVal = document.getElementById('pastExamSearch').value.toLowerCase().trim();
         const statusVal = document.getElementById('pastExamFilter').value;
         const allCards = Array.from(document.querySelectorAll('.past-exam-card'));
-        
+
         // Filter elements
         const matchingCards = allCards.filter(card => {
             const title = card.getAttribute('data-title') || '';
             const status = card.getAttribute('data-status') || '';
-            
+
             const matchSearch = title.includes(searchVal);
-            
+
             let matchStatus = false;
             if (statusVal === 'all') {
                 matchStatus = true;
@@ -399,12 +399,12 @@
         // Paginate remaining
         const totalPages = Math.ceil(matchingCards.length / pastExamsPerPage) || 1;
         if (currentPastPage > totalPages) currentPastPage = totalPages;
-        
+
         const startIdx = (currentPastPage - 1) * pastExamsPerPage;
         const endIdx = startIdx + pastExamsPerPage;
 
         for (let i = startIdx; i < endIdx && i < matchingCards.length; i++) {
-            matchingCards[i].style.display = 'block'; 
+            matchingCards[i].style.display = 'block';
         }
 
         renderPastExamsPagination(totalPages, matchingCards.length);
@@ -422,7 +422,7 @@
     function renderPastExamsPagination(totalPages, totalItems) {
         const container = document.getElementById('past-exams-pagination');
         if (!container) return;
-        
+
         if (totalPages <= 1) {
             container.innerHTML = '';
             return;
@@ -430,11 +430,11 @@
 
         let html = '<ul class="pagination pagination-sm m-0 border-secondary border-opacity-25 shadow-sm">';
         html += `<li class="page-item ${currentPastPage === 1 ? 'disabled' : ''}"><a class="page-link shadow-none" href="javascript:void(0)" onclick="setPastPage(${currentPastPage - 1})">Prev</a></li>`;
-        
+
         for (let i = 1; i <= totalPages; i++) {
             html += `<li class="page-item ${i === currentPastPage ? 'active' : ''}"><a class="page-link shadow-none" href="javascript:void(0)" onclick="setPastPage(${i})">${i}</a></li>`;
         }
-        
+
         html += `<li class="page-item ${currentPastPage === totalPages ? 'disabled' : ''}"><a class="page-link shadow-none" href="javascript:void(0)" onclick="setPastPage(${currentPastPage + 1})">Next</a></li>`;
         html += '</ul>';
         container.innerHTML = html;
@@ -443,11 +443,11 @@
     function setPastPage(page) {
         currentPastPage = page;
         // Don't reset to 1 when directly changing page
-        
+
         const searchVal = document.getElementById('pastExamSearch').value.toLowerCase().trim();
         const statusVal = document.getElementById('pastExamFilter').value;
         const allCards = Array.from(document.querySelectorAll('.past-exam-card'));
-        
+
         const matchingCards = allCards.filter(card => {
             const title = card.getAttribute('data-title');
             const status = card.getAttribute('data-status');
@@ -461,7 +461,7 @@
         const endIdx = startIdx + pastExamsPerPage;
 
         for (let i = startIdx; i < endIdx && i < matchingCards.length; i++) {
-            matchingCards[i].style.display = 'block'; 
+            matchingCards[i].style.display = 'block';
         }
 
         renderPastExamsPagination(Math.ceil(matchingCards.length / pastExamsPerPage), matchingCards.length);

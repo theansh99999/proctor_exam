@@ -7,6 +7,14 @@ from sqlalchemy.orm import Session
 import os
 import models
 import database
+from core.rbac import (
+    PlatformRole,
+    normalize_role,
+    is_super_admin,
+    is_org_admin,
+    is_examiner_or_admin,
+    is_candidate
+)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
@@ -61,8 +69,13 @@ def get_current_user_api(token: str = Depends(oauth2_scheme), db: Session = Depe
 def get_current_user_cookie(request: Request, db: Session = Depends(database.get_db)):
     token = request.cookies.get("access_token")
     if token and token.startswith("Bearer "):
-        token = token.split(" ")[1]
-    
+        token = token.split(" ", 1)[1]
+
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1]
+
     if not token:
         return None
     try:
@@ -78,13 +91,13 @@ def require_auth(request: Request, db: Session = Depends(database.get_db)):
 
 def require_teacher(request: Request, db: Session = Depends(database.get_db)):
     user = require_auth(request, db)
-    if user.role != "teacher":
+    if not is_examiner_or_admin(user):
         raise HTTPException(status_code=403, detail="Not authorized as teacher")
     return user
 
 def require_student(request: Request, db: Session = Depends(database.get_db)):
     user = require_auth(request, db)
-    if user.role != "student":
+    if not is_candidate(user):
         raise HTTPException(status_code=403, detail="Not authorized as student")
     return user
 
@@ -96,7 +109,24 @@ def require_auth_api(request: Request, db: Session = Depends(database.get_db)):
 
 def require_student_api(request: Request, db: Session = Depends(database.get_db)):
     user = require_auth_api(request, db)
-    if user.role != "student":
+    if not is_candidate(user):
         raise HTTPException(status_code=403, detail="Not authorized as student")
     return user
 
+def require_examiner_api(request: Request, db: Session = Depends(database.get_db)):
+    user = require_auth_api(request, db)
+    if not is_examiner_or_admin(user):
+        raise HTTPException(status_code=403, detail="Not authorized as examiner/teacher")
+    return user
+
+def require_org_admin_api(request: Request, db: Session = Depends(database.get_db)):
+    user = require_auth_api(request, db)
+    if not is_org_admin(user):
+        raise HTTPException(status_code=403, detail="Not authorized as organization admin")
+    return user
+
+def require_super_admin_api(request: Request, db: Session = Depends(database.get_db)):
+    user = require_auth_api(request, db)
+    if not is_super_admin(user):
+        raise HTTPException(status_code=403, detail="Not authorized as super admin")
+    return user

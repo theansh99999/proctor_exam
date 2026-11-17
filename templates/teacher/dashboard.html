@@ -14,9 +14,15 @@
                     Smart proctoring and comprehensive analytics at your fingertips. Design interactive, cheat-proof exams and manage student cohorts flawlessly in seconds.
                 </p>
             </div>
-            <div class="col-lg-4 d-flex justify-content-lg-end justify-content-center">
-                <a href="/teacher/exam-editor" class="btn btn-primary-custom btn-lg shadow fw-bold d-flex align-items-center justify-content-center" style="border-radius: 14px; padding: 1.25rem 2rem; font-size: 1.15rem; transition: transform 0.2s ease-in-out;">
-                    <span class="fs-4 me-2">✨</span> Create New Exam
+            <div class="col-lg-5 d-flex flex-column flex-sm-row justify-content-lg-end justify-content-center gap-2">
+                <a href="/teacher/question-bank" class="btn btn-outline-info btn-lg shadow-sm fw-bold d-flex align-items-center justify-content-center" style="border-radius: 14px; padding: 1rem 1.25rem; font-size: 1rem;">
+                    <span class="fs-5 me-2">📚</span> Question Bank
+                </a>
+                <a href="/teacher/assessments" class="btn btn-outline-primary btn-lg shadow-sm fw-bold d-flex align-items-center justify-content-center" style="border-radius: 14px; padding: 1rem 1.25rem; font-size: 1rem;">
+                    <span class="fs-5 me-2">📋</span> Assessments
+                </a>
+                <a href="/teacher/exam-editor" class="btn btn-primary-custom btn-lg shadow fw-bold d-flex align-items-center justify-content-center" style="border-radius: 14px; padding: 1rem 1.5rem; font-size: 1rem; transition: transform 0.2s ease-in-out;">
+                    <span class="fs-5 me-2">✨</span> Create Exam
                 </a>
             </div>
         </div>
@@ -59,7 +65,7 @@
             <h5 class="fw-bold mb-0 text-body-emphasis">Live Monitoring Center</h5>
             <span class="badge bg-danger rounded-pill ms-3 pulse-badge shadow-sm">🔴 {{ active_exams_data|length }} ONLINE</span>
         </div>
-        
+
         <div class="row g-3">
             {% for item in active_exams_data %}
             <div class="col-lg-6">
@@ -142,7 +148,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="col-lg-6">
         <div class="card glass-card h-100 border-0 shadow-sm" style="border-top: 4px solid #ef4444 !important;">
             <div class="card-body p-4">
@@ -180,11 +186,11 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="fw-bold mb-0">Your Groups</h5>
                 </div>
-                
+
                 <div class="mb-3">
                     <input type="text" id="groupSearchInput" class="form-control bg-body-tertiary border-secondary border-opacity-25" placeholder="🔍 Search groups..." onkeyup="filterItems('groupSearchInput', 'groups-list')">
                 </div>
-                
+
                 <div id="groups-list" class="d-flex flex-column gap-3 mb-4 pe-2" style="max-height: 400px; overflow-y: auto;">
                     {% for group in groups %}
                     <div class="card bg-transparent border border-secondary border-opacity-25 rounded-3 filter-item" data-name="{{ group.name|lower }}" style="transition: all 0.2s ease; overflow: hidden;">
@@ -229,11 +235,11 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="fw-bold mb-0">Your Students</h5>
                 </div>
-                
+
                 <div class="mb-3">
                     <input type="text" id="studentSearchInput" class="form-control bg-body-tertiary border-secondary border-opacity-25" placeholder="🔍 Search students..." onkeyup="filterItems('studentSearchInput', 'students-list')">
                 </div>
-                
+
                 <div id="students-list" class="d-flex flex-column gap-3 mb-4 pe-2" style="max-height: 400px; overflow-y: auto;">
                     {% for student in all_students %}
                     <div class="card bg-transparent border border-secondary border-opacity-25 rounded-3 filter-item" data-name="{{ student.name|lower }} {{ student.email|lower }}" style="transition: all 0.2s ease; overflow: hidden;">
@@ -281,11 +287,11 @@
                     <h5 class="fw-bold mb-0">Exam Repository</h5>
                     <a href="/teacher/exam-editor" class="btn btn-sm btn-primary-custom fw-bold rounded-pill px-3 py-2 border-0 shadow-sm"><span class="me-1">✍️</span> Draft Exam</a>
                 </div>
-                
+
                 <div class="mb-3">
                     <input type="text" id="examSearchInput" class="form-control bg-body-tertiary border-secondary border-opacity-25" placeholder="🔍 Search exams..." onkeyup="filterItems('examSearchInput', 'exams-list')">
                 </div>
-                
+
                 <div id="exams-list" class="d-flex flex-column gap-3 mb-2" style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
                     {% for exam in exams %}
                     <div class="card bg-transparent border border-secondary border-opacity-25 rounded-3 hover-shadow-sm filter-item" data-name="{{ exam.title|lower }}" style="transition: all 0.2s ease;">
@@ -484,13 +490,13 @@
 
     ws.onmessage = function(event) {
         const data = JSON.parse(event.data);
-        
+
         if(data.type === 'live_submission') {
             // General Toast Alert for Dashboard
             const alertMsg = `✅ ${data.student_name} just submitted exam! Score: ${data.score}`;
             document.getElementById('toastMessage').innerText = alertMsg;
             const toastEl = document.getElementById('cheatToast');
-            toastEl.classList.replace('bg-danger', 'bg-success'); 
+            toastEl.classList.replace('bg-danger', 'bg-success');
             const toast = new bootstrap.Toast(toastEl, { delay: 5000 });
             toast.show();
         } else {
@@ -498,7 +504,7 @@
             const alertMsg = `⚠️ ${data.student_name} triggered a violation in '${data.exam_title}': ${data.description}`;
             document.getElementById('toastMessage').innerText = alertMsg;
             const toastEl = document.getElementById('cheatToast');
-            toastEl.classList.replace('bg-success', 'bg-danger'); 
+            toastEl.classList.replace('bg-success', 'bg-danger');
             const toast = new bootstrap.Toast(toastEl, { delay: 15000 });
             toast.show();
         }
@@ -539,7 +545,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
-                    scales: { 
+                    scales: {
                         y: { beginAtZero: true, max: 100, grid: { color: 'rgba(0,0,0,0.05)' } },
                         x: { grid: { display: false } }
                     }
@@ -577,7 +583,7 @@
     function confirmDelete(type, id, name) {
         const form = document.getElementById('deleteForm');
         const label = document.getElementById('deleteTargetName');
-        
+
         if (type === 'exam') {
             form.action = `/teacher/exam/${id}/delete`;
             label.textContent = `Exam: "${name}"`;
@@ -588,7 +594,7 @@
             form.action = `/teacher/student/${id}/delete`;
             label.textContent = `Student: "${name}" (+ all submissions, grades, flags)`;
         }
-        
+
         const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
         modal.show();
     }
@@ -614,17 +620,17 @@
         let totalPages = Math.ceil(totalItems / itemsPerPage);
         let container = document.getElementById(listId + '-pagination');
         if (!container) return;
-        
+
         container.innerHTML = '';
         if (totalPages <= 1) return;
 
         let paginationHtml = '<ul class="pagination pagination-sm m-0 border-secondary border-opacity-25 shadow-sm">';
         paginationHtml += `<li class="page-item ${state.page === 1 ? 'disabled' : ''}"><a class="page-link shadow-none" href="javascript:void(0)" onclick="changePage('${listId}', ${state.page - 1})">Prev</a></li>`;
-        
+
         for (let i = 1; i <= totalPages; i++) {
             paginationHtml += `<li class="page-item ${i === state.page ? 'active' : ''}"><a class="page-link shadow-none" href="javascript:void(0)" onclick="changePage('${listId}', ${i})">${i}</a></li>`;
         }
-        
+
         paginationHtml += `<li class="page-item ${state.page === totalPages ? 'disabled' : ''}"><a class="page-link shadow-none" href="javascript:void(0)" onclick="changePage('${listId}', ${state.page + 1})">Next</a></li>`;
         paginationHtml += '</ul>';
         container.innerHTML = paginationHtml;
@@ -646,7 +652,7 @@
 
         let items = listContainer.getElementsByClassName('filter-item');
         let matchingItems = [];
-        
+
         for (let i = 0; i < items.length; i++) {
             let dataName = items[i].getAttribute('data-name') || "";
             if (dataName.indexOf(input) > -1) {
@@ -654,18 +660,18 @@
             }
             items[i].style.display = "none";
         }
-        
+
         let state = paginationState[listId];
         let totalPages = Math.ceil(matchingItems.length / itemsPerPage);
         if (state.page > totalPages && totalPages > 0) state.page = totalPages;
-        
+
         let startIndex = (state.page - 1) * itemsPerPage;
         let endIndex = startIndex + itemsPerPage;
-        
+
         for (let i = startIndex; i < endIndex && i < matchingItems.length; i++) {
             matchingItems[i].style.display = "";
         }
-        
+
         renderPagination(listId, matchingItems.length);
     }
 

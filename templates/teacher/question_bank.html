@@ -1,0 +1,637 @@
+{% extends "base.html" %}
+
+
+
+{% block content %}
+
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+
+        <div>
+
+            <h2 class="fw-bold mb-1">Question Bank</h2>
+
+            <p class="text-muted mb-0">Manage reusable, categorized questions for Academic, Placement, Technical, and Custom assessments.</p>
+
+        </div>
+
+        <div class="d-flex gap-2">
+
+            <a href="/teacher/assessments" class="btn btn-outline-secondary">
+
+                ← Assessments
+
+            </a>
+
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">
+
+                📥 Bulk Import (CSV/JSON)
+
+            </button>
+
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createQuestionModal">
+
+                + New Question
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Overview Counters -->
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-2 col-sm-4 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center">
+
+                <span class="text-muted small text-uppercase fw-bold">Total Questions</span>
+
+                <h3 class="fw-bold text-primary mb-0">{{ total_count }}</h3>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-2 col-sm-4 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center">
+
+                <span class="text-muted small text-uppercase fw-bold">Published</span>
+
+                <h3 class="fw-bold text-success mb-0">{{ published_count }}</h3>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-2 col-sm-4 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center">
+
+                <span class="text-muted small text-uppercase fw-bold">Draft</span>
+
+                <h3 class="fw-bold text-secondary mb-0">{{ draft_count }}</h3>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-2 col-sm-4 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center">
+
+                <span class="text-muted small text-uppercase fw-bold">Reviewed</span>
+
+                <h3 class="fw-bold text-info mb-0">{{ reviewed_count }}</h3>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-2 col-sm-4 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center">
+
+                <span class="text-muted small text-uppercase fw-bold">Archived</span>
+
+                <h3 class="fw-bold text-muted mb-0">{{ archived_count }}</h3>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-2 col-sm-4 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center">
+
+                <span class="text-muted small text-uppercase fw-bold">Categories</span>
+
+                <h3 class="fw-bold text-warning mb-0">4</h3>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Filters & Search Bar -->
+
+    <div class="card glass-card border-0 shadow-sm p-3 mb-4">
+
+        <form method="GET" action="/teacher/question-bank" class="row g-2 align-items-center">
+
+            <div class="col-md-3">
+
+                <input type="text" name="search" class="form-control" placeholder="Search by question text or topic..." value="{{ search }}">
+
+            </div>
+
+            <div class="col-md-2">
+
+                <select name="question_type" class="form-select">
+
+                    <option value="" {% if not question_type %}selected{% endif %}>All Types</option>
+
+                    <option value="single_choice" {% if question_type == 'single_choice' %}selected{% endif %}>Single Choice</option>
+
+                    <option value="multiple_choice" {% if question_type == 'multiple_choice' %}selected{% endif %}>Multiple Choice</option>
+
+                    <option value="true_false" {% if question_type == 'true_false' %}selected{% endif %}>True/False</option>
+
+                    <option value="short_answer" {% if question_type == 'short_answer' %}selected{% endif %}>Short Answer</option>
+
+                    <option value="descriptive" {% if question_type == 'descriptive' %}selected{% endif %}>Descriptive</option>
+
+                    <option value="code" {% if question_type == 'code' %}selected{% endif %}>Code / Programming</option>
+
+                </select>
+
+            </div>
+
+            <div class="col-md-2">
+
+                <select name="difficulty" class="form-select">
+
+                    <option value="" {% if not difficulty %}selected{% endif %}>All Difficulties</option>
+
+                    <option value="easy" {% if difficulty == 'easy' %}selected{% endif %}>Easy</option>
+
+                    <option value="medium" {% if difficulty == 'medium' %}selected{% endif %}>Medium</option>
+
+                    <option value="hard" {% if difficulty == 'hard' %}selected{% endif %}>Hard</option>
+
+                </select>
+
+            </div>
+
+            <div class="col-md-2">
+
+                <select name="category" class="form-select">
+
+                    <option value="" {% if not category %}selected{% endif %}>All Categories</option>
+
+                    <option value="academic" {% if category == 'academic' %}selected{% endif %}>Academic</option>
+
+                    <option value="placement" {% if category == 'placement' %}selected{% endif %}>Placement</option>
+
+                    <option value="technical" {% if category == 'technical' %}selected{% endif %}>Technical</option>
+
+                    <option value="custom" {% if category == 'custom' %}selected{% endif %}>Custom</option>
+
+                </select>
+
+            </div>
+
+            <div class="col-md-3 d-flex gap-2">
+
+                <button type="submit" class="btn btn-primary w-100">Filter</button>
+
+                <a href="/teacher/question-bank" class="btn btn-outline-secondary">Reset</a>
+
+            </div>
+
+        </form>
+
+    </div>
+
+
+
+    <!-- Questions Table -->
+
+    <div class="card glass-card border-0 shadow-sm">
+
+        <div class="table-responsive">
+
+            <table class="table table-hover align-middle mb-0">
+
+                <thead class="table-light">
+
+                    <tr>
+
+                        <th style="width: 35%;">Question</th>
+
+                        <th>Type</th>
+
+                        <th>Category</th>
+
+                        <th>Subject / Topic</th>
+
+                        <th>Difficulty</th>
+
+                        <th>Marks</th>
+
+                        <th>Status</th>
+
+                        <th class="text-end">Actions</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% if questions %}
+
+                        {% for q in questions %}
+
+                        <tr>
+
+                            <td>
+
+                                <div class="fw-bold mb-1">{{ q.text }}</div>
+
+                                {% if q.options %}
+
+                                <div class="small text-muted">
+
+                                    {% for opt in q.options %}
+
+                                        <span class="badge {% if opt.is_correct %}bg-success-subtle text-success border border-success{% else %}bg-light text-muted border{% endif %} me-1 mb-1">
+
+                                            {% if opt.is_correct %}✓ {% endif %}{{ opt.text }}
+
+                                        </span>
+
+                                    {% endfor %}
+
+                                </div>
+
+                                {% endif %}
+
+                            </td>
+
+                            <td>
+
+                                <span class="badge bg-secondary-subtle text-secondary border">
+
+                                    {{ q.question_type|replace('_', ' ')|capitalize }}
+
+                                </span>
+
+                            </td>
+
+                            <td>
+
+                                <span class="badge bg-info-subtle text-info-emphasis border">
+
+                                    {{ q.assessment_category|capitalize }}
+
+                                </span>
+
+                            </td>
+
+                            <td>
+
+                                <div class="fw-medium">{{ q.subject }}</div>
+
+                                <small class="text-muted">{{ q.topic }}</small>
+
+                            </td>
+
+                            <td>
+
+                                <span class="badge {% if q.difficulty == 'easy' %}bg-success{% elif q.difficulty == 'medium' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+
+                                    {{ q.difficulty|capitalize }}
+
+                                </span>
+
+                            </td>
+
+                            <td>
+
+                                <div>{{ q.default_marks }} pts</div>
+
+                                {% if q.default_negative_marks > 0 %}
+
+                                <small class="text-danger">-{{ q.default_negative_marks }}</small>
+
+                                {% endif %}
+
+                            </td>
+
+                            <td>
+
+                                <span class="badge {% if q.status == 'published' %}bg-success{% elif q.status == 'reviewed' %}bg-info text-dark{% elif q.status == 'archived' %}bg-secondary{% else %}bg-light text-dark border{% endif %}">
+
+                                    {{ q.status|capitalize }}
+
+                                </span>
+
+                            </td>
+
+                            <td class="text-end">
+
+                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#previewModal{{ q.id }}">
+
+                                    Preview
+
+                                </button>
+
+                            </td>
+
+                        </tr>
+
+
+
+                        <!-- Preview Modal -->
+
+                        <div class="modal fade" id="previewModal{{ q.id }}" tabindex="-1" aria-hidden="true">
+
+                            <div class="modal-dialog modal-lg">
+
+                                <div class="modal-content">
+
+                                    <div class="modal-header">
+
+                                        <h5 class="modal-title">Question Preview #{{ q.id }}</h5>
+
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+                                    </div>
+
+                                    <div class="modal-body">
+
+                                        <h5>{{ q.text }}</h5>
+
+                                        <div class="my-3">
+
+                                            {% for opt in q.options %}
+
+                                            <div class="p-2 mb-2 rounded {% if opt.is_correct %}border border-success bg-success-subtle{% else %}border bg-light{% endif %}">
+
+                                                <strong>{% if opt.is_correct %}✓ [Correct] {% else %}○ {% endif %}</strong> {{ opt.text }}
+
+                                                {% if opt.explanation %}
+
+                                                <div class="small text-muted mt-1"><em>Explanation: {{ opt.explanation }}</em></div>
+
+                                                {% endif %}
+
+                                            </div>
+
+                                            {% endfor %}
+
+                                        </div>
+
+                                        {% if q.explanation %}
+
+                                        <div class="alert alert-info py-2">
+
+                                            <strong>General Explanation:</strong> {{ q.explanation }}
+
+                                        </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+                                    <div class="modal-footer">
+
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <tr>
+
+                            <td colspan="8" class="text-center py-5 text-muted">
+
+                                <h5>No questions found in the bank matching this filter.</h5>
+
+                                <p>Click "+ New Question" or "Bulk Import" to add questions.</p>
+
+                            </td>
+
+                        </tr>
+
+                    {% endif %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+
+        <!-- Pagination -->
+
+        {% if total_pages > 1 %}
+
+        <div class="card-footer bg-transparent d-flex justify-content-between align-items-center py-3">
+
+            <span class="text-muted small">Page {{ current_page }} of {{ total_pages }} ({{ total_count }} total questions)</span>
+
+            <div class="btn-group">
+
+                {% if current_page > 1 %}
+
+                <a href="/teacher/question-bank?page={{ current_page - 1 }}&search={{ search }}&question_type={{ question_type }}&difficulty={{ difficulty }}&category={{ category }}" class="btn btn-sm btn-outline-secondary">Previous</a>
+
+                {% endif %}
+
+                {% if current_page < total_pages %}
+
+                <a href="/teacher/question-bank?page={{ current_page + 1 }}&search={{ search }}&question_type={{ question_type }}&difficulty={{ difficulty }}&category={{ category }}" class="btn btn-sm btn-outline-secondary">Next</a>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+
+
+<!-- Bulk Import Modal -->
+
+<div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+
+    <div class="modal-dialog">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h5 class="modal-title">Bulk Import Questions</h5>
+
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <p class="text-muted small">Upload your questions in standard CSV or JSON format. You can download pre-formatted templates below.</p>
+
+                <div class="d-flex gap-2 mb-3">
+
+                    <a href="/api/v1/question-bank/templates/csv" class="btn btn-sm btn-outline-secondary" download>
+
+                        ⬇ Download Sample CSV
+
+                    </a>
+
+                    <a href="/api/v1/question-bank/templates/json" class="btn btn-sm btn-outline-secondary" download>
+
+                        ⬇ Download Sample JSON
+
+                    </a>
+
+                </div>
+
+                <form id="csvImportForm" enctype="multipart/form-data">
+
+                    <div class="mb-3">
+
+                        <label class="form-label fw-bold">Select CSV File</label>
+
+                        <input type="file" id="csvFileInput" name="file" accept=".csv" class="form-control" required>
+
+                    </div>
+
+                    <div class="form-check mb-3">
+
+                        <input class="form-check-input" type="checkbox" id="previewCheck" checked>
+
+                        <label class="form-check-label" for="previewCheck">
+
+                            Preview and validate rows before committing
+
+                        </label>
+
+                    </div>
+
+                    <div id="importResultAlert" class="alert d-none py-2 small"></div>
+
+                    <button type="button" class="btn btn-primary w-100" onclick="submitCsvImport()">Upload & Process</button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+async function submitCsvImport() {
+
+    const fileInput = document.getElementById('csvFileInput');
+
+    const isPreview = document.getElementById('previewCheck').checked;
+
+    const alertBox = document.getElementById('importResultAlert');
+
+
+
+    if (!fileInput.files.length) {
+
+        alertBox.className = 'alert alert-danger py-2 small';
+
+        alertBox.innerText = 'Please select a CSV file first.';
+
+        alertBox.classList.remove('d-none');
+
+        return;
+
+    }
+
+
+
+    const formData = new FormData();
+
+    formData.append('file', fileInput.files[0]);
+
+
+
+    alertBox.className = 'alert alert-info py-2 small';
+
+    alertBox.innerText = 'Processing import...';
+
+    alertBox.classList.remove('d-none');
+
+
+
+    try {
+
+        const res = await fetch(`/api/v1/question-bank/import/csv?preview=${isPreview}`, {
+
+            method: 'POST',
+
+            body: formData
+
+        });
+
+        const data = await res.json();
+
+
+
+        if (res.ok && data.success) {
+
+            alertBox.className = 'alert alert-success py-2 small';
+
+            if (isPreview) {
+
+                alertBox.innerText = `Preview Validated: ${data.data.valid_count} valid rows, ${data.data.error_count} errors, ${data.data.duplicate_count} duplicates.`;
+
+            } else {
+
+                alertBox.innerText = `Success: ${data.data.imported_count} questions imported into the Question Bank! Refreshing...`;
+
+                setTimeout(() => window.location.reload(), 1500);
+
+            }
+
+        } else {
+
+            alertBox.className = 'alert alert-warning py-2 small';
+
+            const errMsg = data.error ? data.error.message : (data.data?.errors?.[0]?.error || 'Validation failed');
+
+            alertBox.innerText = `Import Issue: ${errMsg}`;
+
+        }
+
+    } catch (err) {
+
+        alertBox.className = 'alert alert-danger py-2 small';
+
+        alertBox.innerText = 'Network or processing error during import.';
+
+    }
+
+}
+
+</script>
+
+{% endblock %}

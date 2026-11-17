@@ -1,279 +1,198 @@
-# 🎓 ExamProctor — AI-Powered Online Exam Platform
+# 🎓 ExamProctor — Enterprise Assessment & Proctoring Monolith
 
 <p align="center">
-  <strong>A full-stack online examination system with real-time AI proctoring, live analytics, and automated email notifications.</strong>
+  <strong>A high-concurrency, modular monolith examination platform with configurable AI-assisted proctoring, multi-tenant organization isolation, adaptive testing, and comprehensive analytics.</strong>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/FastAPI-0.135-009688?logo=fastapi&logoColor=white" alt="FastAPI">
-  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/SQLAlchemy-2.0-D71F00?logo=sqlalchemy&logoColor=white" alt="SQLAlchemy">
-  <img src="https://img.shields.io/badge/WebSocket-Enabled-brightgreen" alt="WebSocket">
-  <img src="https://img.shields.io/badge/MediaPipe-Face%20Detection-FF6F00?logo=google&logoColor=white" alt="MediaPipe">
+  <img src="https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/PostgreSQL-15+-336791?logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/Redis-7+-DC382D?logo=redis&logoColor=white" alt="Redis">
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white" alt="GitHub Actions">
 </p>
 
 ---
 
-## ✨ Features Overview
+## 🏛️ System Architecture
 
-### 👨‍🏫 Teacher Portal
-| Feature | Description |
-|---------|-------------|
-| 📊 **Dashboard** | Live stats — active exams, student count, violation alerts |
-| 📝 **Exam Builder** | Create exams with per-question marks, negative marking, and time limits |
-| 👥 **Group Management** | Create student groups and bulk-assign exams |
-| 📅 **Scheduling** | Set precise start/end times with automatic status transitions (Upcoming → Live → Ended) |
-| 🔴 **Live Monitoring** | Real-time WebSocket panel showing student submissions and violation flags as they happen |
-| 📈 **Analytics** | Pass/Fail pie charts, score distributions, per-student performance breakdown |
-| 📤 **CSV Export** | Download full submission data for any exam |
-| 🔔 **Notifications** | Bell dropdown with upcoming exam reminders and live cheat alerts |
-| 👤 **Student Profiles** | View individual student history, answer sheets, and violation logs |
-
-### 👨‍🎓 Student Portal
-| Feature | Description |
-|---------|-------------|
-| 🏠 **Dashboard** | Live countdown timers for upcoming exams, score trajectory chart, pass/fail chart |
-| 📝 **Smart Exam Taking** | AI-proctored exam with fullscreen enforcement and question palette |
-| 🔒 **AI Proctoring** | MediaPipe face detection — flags no-face, multiple faces, head-turn, looking-down |
-| 🎧 **Audio Monitoring** | Detects sustained background noise/talking during exam |
-| ⚡ **Violation Tracking** | 5-strike system with auto-submit on max violations; each flagged in real-time to teacher |
-| 📖 **Practice Mode** | Re-attempt any missed/completed exam in practice mode (results not saved) |
-| 📊 **Performance Analysis** | Full answer sheet with correct/wrong highlighting, per-question marks breakdown |
-| 📈 **Performance Dashboard** | See all assigned exams, scores, and cumulative analytics in one place |
-
-### 📧 Email Notifications
-- Automated HTML email sent to all students when a new exam is assigned
-- Includes exam title, group, teacher name, start/end time, duration, and dashboard link
-- Built with Python's built-in `smtplib` — **no extra packages required**
-- Gracefully skips if not configured (no crashes)
-
----
-
-## 🏗️ Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Backend** | FastAPI (Python 3.10+) |
-| **Database** | PostgreSQL + SQLAlchemy ORM |
-| **Auth** | JWT (via `python-jose`) + bcrypt password hashing |
-| **Real-time** | WebSockets (`websockets` library) |
-| **AI Proctoring** | MediaPipe Tasks Vision (browser-side, CDN) |
-| **Frontend** | Jinja2 Templates + Bootstrap 5 + Chart.js |
-| **Email** | Python `smtplib` (Gmail SMTP / TLS) |
-| **Background Jobs** | FastAPI `BackgroundTasks` |
-
----
-
-## 📁 Project Structure
+ExamProctor is architected as a modular monolith adhering to Domain-Driven Design (DDD) principles. It combines high-throughput asynchronous request routing with robust data persistence, connection pooling, and multi-tenant isolation.
 
 ```
-exam proctor/
-├── main.py                  # App entry point, router registration
-├── models.py                # SQLAlchemy ORM models
-├── database.py              # DB engine & session factory
-├── auth.py                  # JWT auth, password hashing, dependency guards
-├── schemas.py               # Pydantic request/response schemas
-├── email_service.py         # Real Gmail SMTP email notification service
-├── ws_manager.py            # WebSocket connection manager
-├── requirements.txt
-├── .env                     # Environment config (not committed)
-│
-├── routers/
-│   ├── auth_r.py            # Login, register, logout routes
-│   ├── teacher_r.py         # All teacher-facing routes & APIs
-│   └── student_r.py         # All student-facing routes & APIs
-│
-├── templates/
-│   ├── base.html            # Shared layout (navbar, theme toggle, notifications)
-│   ├── teacher/             # Teacher page templates
-│   └── student/             # Student page templates
-│
-├── static/
-│   └── style.css            # Custom CSS (dark/light mode, glassmorphism)
-│
-└── testing/                 # Automated test suite (isolated SQLite in-memory DB)
-    ├── test_runner.py
-    ├── test_db.py
-    ├── teacher/
-    └── student/
+                      ┌─────────────────────────────────────────┐
+                      │          Nginx Reverse Proxy            │
+                      │    (SSL Termination / HTTP/2 / WSS)     │
+                      └────────────────────┬────────────────────┘
+                                           │
+                    ┌──────────────────────┴──────────────────────┐
+                    │                                             │
+                    ▼                                             ▼
+     ┌─────────────────────────────┐               ┌─────────────────────────────┐
+     │   FastAPI Web Cluster       │               │   Background Async Worker   │
+     │  (Gunicorn + Uvicorn Workers)│              │  (Scheduled jobs, sync,     │
+     │  Non-root `appuser` (10001) │               │   session auto-finalize)    │
+     └──────────────┬──────────────┘               └──────────────┬──────────────┘
+                    │                                             │
+          ┌─────────┴───────────────┐                             │
+          ▼                         ▼                             ▼
+┌───────────────────┐     ┌───────────────────┐         ┌───────────────────┐
+│  PostgreSQL 15+   │     │      Redis 7+     │         │ External Services │
+│ (Pool: 20+10,     │     │ (Distributed Lock,│         │ (ServiceNow,      │
+│  Pre-ping, SSL)   │     │  Cache, TTL Fallbk│         │  LLM Generators)  │
+└───────────────────┘     └───────────────────┘         └───────────────────┘
 ```
 
 ---
 
-## 🚀 Local Setup
+## 🚀 Key Platform Capabilities
+
+1. **Role-Based Access Control & Multi-Tenancy**:
+   - Strict organization-level data isolation across 4 roles: `Super Admin`, `Organization Admin`, `Examiner`, and `Candidate`.
+   - Immutable audit logging for security governance and traceability.
+
+2. **Unified Assessment Engine**:
+   - Six supported question types: Single-choice MCQ, Multi-select MCQ, True/False, Short Answer, Descriptive (with examiner manual grading), and Code Stubs.
+   - Blueprint-driven automatic question assembly and reusable assessment templates.
+   - Item Response Theory (IRT) adaptive testing engine with dynamic difficulty adjustment.
+   - Deterministic option and question shuffling with sequential section-locking navigation.
+
+3. **Configurable Proctoring & Integrity Monitoring**:
+   - Configurable proctoring policies per assessment (webcam, microphone, face tracking, tab-switch detection).
+   - Air-gapped integrity scoring: Proctoring violation flags **never alter academic marks directly**; suspicious attempts are routed to an examiner review queue with timestamped evidence.
+   - Real-time examiner live-monitoring dashboard powered by WebSockets.
+
+4. **Production Hardening & Operational Resilience**:
+   - Connection pooling (`QueuePool` with `pool_pre_ping=True` and connection recycling).
+   - Redis distributed caching with transparent in-memory TTL dictionary fallback.
+   - Comprehensive security headers (HSTS, CSP, X-Frame-Options: SAMEORIGIN) and SlowAPI rate limiting.
+   - Distributed request tracing (`X-Request-ID`, `X-Process-Time`) and health probes (`/health`, `/health/ready`).
+   - Automated cryptographic database backup and restoration pipeline (`SHA-256` verification).
+
+---
+
+## 📂 Repository Structure
+
+```
+.
+├── core/                   # Centralized configuration, RBAC, cache, security headers, observability
+├── modules/                # Domain-Driven Modules
+│   ├── admin/              # Super admin governance, audit logging, system settings
+│   ├── analytics/          # Cohort statistics, examiner dashboards, candidate performance
+│   ├── assessments/        # Blueprints, templates, sections, adaptive engine, attempt policies
+│   ├── background/         # Standalone background worker & scheduled jobs
+│   ├── evaluation/         # Grading engine, manual scoring queue, result release gating
+│   ├── integrations/       # Outbound sync framework (ServiceNow, LLM question generator)
+│   ├── notifications/      # Multi-channel notification center (in-app, SMTP)
+│   ├── organizations/      # Multi-tenant isolation & organization administration
+│   ├── proctoring/          # Configurable proctoring policies, violation ingestion, live WS
+│   ├── questions/          # Central question bank & 6 question types
+│   └── users/              # User administration & role management
+├── migrations/             # Sequential migration runner & Phase 1–11 schema migrations
+├── routers/                # Web application routes (admin, auth, student, teacher, websocket)
+├── templates/              # Jinja2 frontend views (admin, auth, student, teacher, notifications)
+├── scripts/                # Database backup, restore, and load testing scripts
+├── docs/                   # Complete operational, deployment, and security documentation
+├── testing/                # Automated regression, integration, and E2E acceptance test suite
+├── .github/workflows/      # 5-stage GitHub Actions CI/CD automation pipeline
+├── docker-compose.yml      # Multi-container orchestration stack (db, redis, web, worker)
+├── Dockerfile              # Hardened rootless multi-stage production container
+├── .env.example            # Development configuration template
+├── .env.production.example # Production configuration template
+└── requirements.txt        # Pinned Python package dependencies
+```
+
+---
+
+## 🛠️ Quick Start & Installation
 
 ### Prerequisites
 - Python 3.10+
-- PostgreSQL 14+
-- Git
+- PostgreSQL 15+
+- Redis 7+ (Optional; in-memory fallback included)
 
-### 1. Clone the repository
+### 1. Clone & Setup Environment
 ```bash
 git clone https://github.com/theansh99999/proctor_exam.git
 cd proctor_exam
-```
 
-### 2. Create and activate virtual environment
-```bash
+# Create and activate virtual environment
 python -m venv venv
+source venv/bin/activate  # On Windows: .\venv\Scripts\activate
 
-# Windows
-venv\Scripts\activate
-
-# macOS / Linux
-source venv/bin/activate
-```
-
-### 3. Install dependencies
-```bash
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 4. Configure environment variables
+### 2. Configure Environment Variables
+```bash
+cp .env.example .env
+```
+Update `.env` with your PostgreSQL database URL, secret key, and optional SMTP credentials. Refer to [`docs/ENVIRONMENT_VARIABLES.md`](docs/ENVIRONMENT_VARIABLES.md) for full configuration specifications.
 
-Copy the `.env` template and fill in your values:
+### 3. Run Database Migrations
+ExamProctor includes an ordered migration runner with status inspection:
+```bash
+# Check current migration status
+python migrations/run_migrations.py status
 
-```env
-# Database
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/exam_proctor
-
-# Security — generate with: python -c "import secrets; print(secrets.token_urlsafe(64))"
-SECRET_KEY=your-secure-random-key-minimum-32-characters
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=120
-
-# Email (Gmail SMTP) — optional, exam creation works without it
-MAIL_USERNAME=your_gmail@gmail.com
-MAIL_PASSWORD=your_16_char_app_password
-MAIL_FROM=ExamProctor <your_gmail@gmail.com>
+# Apply all migrations
+python migrations/run_migrations.py upgrade
 ```
 
-> **Gmail App Password:** Go to `myaccount.google.com → Security → 2-Step Verification → App Passwords` to generate a 16-character app password (your normal Gmail password will NOT work).
+### 4. Start the Application
+```bash
+# Start Web Server
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-### 5. Create the database
+# In a separate terminal, start the Background Worker (optional for background tasks)
+python worker.py
+```
+Visit `http://localhost:8000` to access the platform.
+
+---
+
+## 🐳 Docker Deployment
+
+To launch the full production-like stack including PostgreSQL, Redis, FastAPI, and Background Worker:
+```bash
+# Configure production variables
+cp .env.production.example .env
+
+# Build and start services
+docker compose up -d --build
+
+# Run migrations inside the container
+docker compose exec web python migrations/run_migrations.py upgrade --confirm
+```
+
+---
+
+## 🧪 Running the Test Suite
+
+The repository includes a comprehensive 192-test test harness covering all domain modules, RBAC boundaries, staging migrations, and full lifecycle end-to-end acceptance:
 
 ```bash
-# In PostgreSQL shell
-CREATE DATABASE exam_proctor;
-```
+# Run the complete test suite
+python -m unittest discover -s testing -p "test_*.py"
 
-Tables are created automatically on first run via SQLAlchemy `create_all`.
-
-### 6. Run the development server
-```bash
-fastapi dev main.py
-```
-
-App will be available at **http://127.0.0.1:8000**
-
----
-
-## 🔐 Authentication Flow
-
-1. **Teachers** register at `/register` (role = teacher)
-2. **Students** are added by teachers (teacher enters student email while creating a group)
-3. Students register at `/register` using the same email their teacher added
-4. Login issues an `HttpOnly` cookie with a JWT access token
-5. Token expires after 120 minutes (configurable via `ACCESS_TOKEN_EXPIRE_MINUTES`)
-
----
-
-## 🤖 AI Proctoring Details
-
-The proctoring system runs entirely **browser-side** using the [MediaPipe Tasks Vision](https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector) WASM model (no server GPU required).
-
-### Violation Types
-| Violation | Trigger Delay | Description |
-|-----------|--------------|-------------|
-| No Face Detected | 3 seconds | Student left the frame |
-| Multiple Faces | 2 seconds | Someone else in frame |
-| Extreme Head Turn (Left/Right) | 1.5 seconds | Looking at another device |
-| Moderate Look Away | 2 seconds | Consistently looking sideways |
-| Looking Down | 2 seconds | Possibly reading notes |
-| Tab Switch / Window Blur | Immediate | Switched to another app |
-| Audio / Talking | 2.5 seconds | Sustained background noise |
-| Fullscreen Exit | Immediate | Exited fullscreen mode |
-
-### Strike System
-- **5 violations** → exam auto-submits
-- Each violation is logged to the database and broadcast live to the teacher via WebSocket
-- Proctoring only activates **after** the student clicks "I Understand, Start Exam" — permission dialogs do not count as violations
-
----
-
-## 🧪 Automated Testing
-
-The project includes an isolated test suite using an **in-memory SQLite database** (does not touch production data).
-
-```bash
-# Run tests from terminal
-python testing/test_runner.py
-```
-
-Tests cover:
-- Teacher: Group creation, student management, exam creation
-- Student: Dashboard data, exam flow
-
----
-
-## 📊 Database Models
-
-```
-User ──────────────── GroupMember ──────── Group
- │                                            │
- │  (teacher)                              Exam
- │                                            │
- └──Submission ──────────── StudentAnswer     │
-         │                                    │
-     CheatFlag                           Question ── Option
+# Run the Phase 12 End-to-End Acceptance Scenario
+python -m unittest testing/test_phase12_e2e_acceptance.py
 ```
 
 ---
 
-## 🌐 Key Routes
+## 📖 Operational Documentation
 
-### Auth
-| Method | Path | Description |
-|--------|------|-------------|
-| GET/POST | `/login` | Login page |
-| GET/POST | `/register` | Registration page |
-| GET | `/logout` | Logout & clear cookie |
-
-### Teacher (`/teacher/...`)
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/dashboard` | Main teacher dashboard |
-| POST | `/api/create_exam` | Create a new exam (JSON) |
-| GET | `/exam/{id}/monitor` | Live exam monitoring |
-| GET | `/exam/{id}/submissions` | Submission list with analytics |
-| GET | `/student/{id}/profile` | Individual student profile |
-| GET | `/export/{id}/csv` | Download exam results as CSV |
-
-### Student (`/student/...`)
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/dashboard` | Student dashboard |
-| GET | `/take_exam/{id}` | Enter proctored exam |
-| POST | `/submit_exam/{id}` | Submit exam answers |
-| GET | `/my_report/{id}` | Detailed answer sheet |
-| GET | `/practice_exam/{id}` | Practice a missed exam |
-| GET | `/performance` | Full performance history |
-| GET | `/notifications` | Real-time JSON notifications (API) |
-| POST | `/api/cheat_flag` | Log a proctoring violation (API) |
+Comprehensive guides are provided in the [`docs/`](docs/) directory:
+- [`docs/PRODUCTION_DEPLOYMENT.md`](docs/PRODUCTION_DEPLOYMENT.md): Deployment architectures, Nginx reverse proxy, and bootstrapping.
+- [`docs/SECURITY_CHECKLIST.md`](docs/SECURITY_CHECKLIST.md): Defense-in-depth security checklist, CORS, CSP, and RBAC matrix.
+- [`docs/DISASTER_RECOVERY.md`](docs/DISASTER_RECOVERY.md): RPO/RTO metrics, automated backups, and recovery drills.
+- [`docs/ENVIRONMENT_VARIABLES.md`](docs/ENVIRONMENT_VARIABLES.md): Complete variable dictionary with descriptions and defaults.
+- [`docs/OPERATIONS_RUNBOOK.md`](docs/OPERATIONS_RUNBOOK.md): SRE incident response playbooks, metrics, and log tracing.
 
 ---
 
-## 🤝 Contributing
+## 🛡️ License
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
-
----
-
-## 📄 License
-
-This project is for educational purposes. Feel free to use, modify, and distribute.
-
----
-
-<p align="center">Built with ❤️ using FastAPI + MediaPipe By Ansh Kumar Rai</p>
+This project is licensed under the MIT License.

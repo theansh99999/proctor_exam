@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Results Pending — {{ exam.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6 text-center">
+            <div class="card glass-card border-0 shadow p-5">
+                <div class="mb-4">
+                    <span style="font-size: 3.5rem;">⏳</span>
+                </div>
+                <h3 class="fw-bold mb-2 text-primary">{{ exam.title }}</h3>
+                <h5 class="text-body-emphasis mb-3">Results Under Evaluation</h5>
+                <p class="text-muted mb-4">
+                    {{ message or "Your submission has been safely recorded. Results, final marks, and examiner feedback will be made available here once released by the examiner." }}
+                </p>
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="/student/dashboard" class="btn btn-primary fw-medium px-4">
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,26 +1,117 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="mb-4">
-    <a href="/teacher/exam/{{ exam.id }}/submissions" class="text-decoration-none">&larr; Back to Submissions</a>
+<div class="mb-4 d-flex justify-content-between align-items-center">
+    <a href="/teacher/exam/{{ exam.id }}/submissions" class="btn btn-outline-secondary btn-sm border-2">
+        &larr; Back to Submissions
+    </a>
+    <span class="badge bg-secondary-subtle text-secondary border px-3 py-2">
+        Assessment ID: {{ exam.id }}
+    </span>
 </div>
 
-<div class="card glass-card border-danger border-opacity-50 mb-5 shadow-sm">
+<!-- Integrity Summary Card -->
+<div class="card glass-card border-0 shadow-sm mb-4" style="border-left: 5px solid {% if exam_session and exam_session.risk_level == 'critical' %}#ef4444{% elif exam_session and exam_session.risk_level == 'high' %}#f97316{% elif exam_session and exam_session.risk_level == 'medium' %}#f59e0b{% else %}#10b981{% endif %} !important;">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h3 class="fw-bold mb-1">🛡️ Proctoring Security Audit</h3>
+                <p class="text-muted mb-0">
+                    Candidate: <strong class="text-dark">{{ student.name }}</strong> ({{ student.email }}) &bull; Exam: <strong class="text-dark">{{ exam.title }}</strong>
+                </p>
+            </div>
+            <div class="d-flex gap-3 align-items-center">
+                <div class="text-end">
+                    <div class="text-muted small text-uppercase fw-bold">Integrity Score</div>
+                    <h2 class="fw-bold mb-0 {% if exam_session and exam_session.integrity_score < 50 %}text-danger{% elif exam_session and exam_session.integrity_score < 80 %}text-warning{% else %}text-success{% endif %}">
+                        {{ exam_session.integrity_score if exam_session and exam_session.integrity_score is not None else 100.0 }}%
+                    </h2>
+                </div>
+                <div>
+                    <span class="badge {% if exam_session and exam_session.risk_level == 'critical' %}bg-danger{% elif exam_session and exam_session.risk_level == 'high' %}bg-warning text-dark{% elif exam_session and exam_session.risk_level == 'medium' %}bg-info text-dark{% else %}bg-success{% endif %} fs-6 px-3 py-2 rounded-pill text-uppercase">
+                        {{ exam_session.risk_level if exam_session and exam_session.risk_level else 'Low' }} Risk
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Violation History and Examiner Review Form -->
+<div class="card glass-card border-0 shadow-sm mb-5">
     <div class="card-body p-4 p-md-5">
-        <h3 class="fw-bold mb-2 text-danger">Security Audit Logs</h3>
-        <p class="text-muted mb-5 fw-medium">Tracking Entity: <span class="text-body-emphasis fw-bold badge bg-body-tertiary border text-body-emphasis">{{ student.name }}</span> <span class="mx-2">&bull;</span> Session: <span class="text-body-emphasis fw-bold badge bg-body-tertiary border text-body-emphasis">{{ exam.title }}</span></p>
-        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="fw-bold mb-1">Recorded Events & Violations Timeline</h4>
+                <p class="text-muted small mb-0">Review raw timestamps and submit human review decisions below.</p>
+            </div>
+            <span class="badge bg-danger rounded-pill px-3 py-2 fs-6">
+                {{ flags|length }} Total Events
+            </span>
+        </div>
+
         <div class="d-flex flex-column gap-3">
             {% for flag in flags %}
-            <div class="card bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded-3 hover-shadow-sm" style="transition: all 0.2s ease;">
-                <div class="card-body p-3 p-md-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-                    <div class="d-flex align-items-center">
-                        <span class="fs-3 text-danger me-4"><i class="bi bi-exclamation-octagon-fill"></i></span>
+            <div class="card border rounded-3 p-3 shadow-sm {% if flag.review_decision == 'legitimate' %}bg-light border-success{% elif flag.review_decision == 'suspicious' %}bg-danger bg-opacity-10 border-danger{% else %}bg-white border-secondary border-opacity-25{% endif %}">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                    <div class="d-flex align-items-start gap-3">
+                        <span class="fs-4">
+                            {% if flag.severity == 'critical' %}🚨{% elif flag.severity == 'high' %}⚠️{% elif flag.severity == 'low' %}ℹ️{% else %}🚩{% endif %}
+                        </span>
                         <div>
-                            <h5 class="fw-bold text-danger mb-1">{{ flag.description }}</h5>
-                            <small class="text-muted" style="font-size: 0.85rem;"><span class="fw-bold text-body-emphasis text-uppercase" style="letter-spacing: 0.5px;">Triggered Timestamp:</span> {{ flag.timestamp.strftime('%Y-%m-%d %I:%M:%S %p') }} (Server Time)</small>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h6 class="fw-bold mb-0">{{ flag.description }}</h6>
+                                <span class="badge {% if flag.severity == 'critical' %}bg-danger{% elif flag.severity == 'high' %}bg-warning text-dark{% elif flag.severity == 'low' %}bg-secondary{% else %}bg-danger bg-opacity-75{% endif %} text-uppercase small">
+                                    {{ flag.severity or 'medium' }}
+                                </span>
+                                {% if flag.review_decision %}
+                                <span class="badge {% if flag.review_decision == 'legitimate' %}bg-success{% elif flag.review_decision == 'suspicious' %}bg-danger{% else %}bg-info text-dark{% endif %} text-uppercase small">
+                                    {{ flag.review_decision }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="small text-muted">
+                                <span><strong>Timestamp:</strong> {{ flag.timestamp.strftime('%Y-%m-%d %I:%M:%S %p') }} UTC</span>
+                                {% if flag.event_type %}
+                                <span class="ms-3"><strong>Type:</strong> <code>{{ flag.event_type }}</code></span>
+                                {% endif %}
+                            </div>
+                            {% if flag.reviewer_notes %}
+                            <div class="small text-dark mt-2 p-2 bg-light rounded border">
+                                <strong>Examiner Note:</strong> {{ flag.reviewer_notes }}
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
+
+                    <!-- Review Actions -->
+                    <div class="text-md-end">
+                        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#reviewForm_{{ flag.id }}">
+                            ✏️ Review / Update
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Collapsible Review Form -->
+                <div class="collapse mt-3 pt-3 border-top" id="reviewForm_{{ flag.id }}">
+                    <form method="POST" action="/teacher/exam/{{ exam.id }}/flag/{ flag.id }/review">
+                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token if request.state.csrf_token else '' }}">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md-4">
+                                <select name="review_decision" class="form-select form-select-sm" required>
+                                    <option value="legitimate" {% if flag.review_decision == 'legitimate' %}selected{% endif %}>Legitimate (False Positive / Excused)</option>
+                                    <option value="suspicious" {% if flag.review_decision == 'suspicious' %}selected{% endif %}>Suspicious (Confirmed Violation)</option>
+                                    <option value="inconclusive" {% if flag.review_decision == 'inconclusive' %}selected{% endif %}>Inconclusive (Needs Further Review)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" name="reviewer_notes" class="form-control form-select-sm" placeholder="Examiner review notes..." value="{{ flag.reviewer_notes or '' }}">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">Save Review</button>
+                            </div>
+                        </div>
+                    </form>
                 </div>
             </div>
             {% else %}

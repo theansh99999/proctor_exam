@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+                <div>
+                    <h2 class="fw-bold mb-1">📢 Communication & Announcements</h2>
+                    <p class="text-muted small mb-0">Broadcast messages, instructions, and updates to your candidates, groups, or exam cohorts.</p>
+                </div>
+                <a href="/teacher/dashboard" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-sm">
+                    ← Back to Dashboard
+                </a>
+            </div>
+
+            {% if message %}
+            <div class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show rounded-3 shadow-sm" role="alert">
+                {{ error }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+
+            <!-- Composer Card -->
+            <div class="card glass-card border-0 shadow-sm p-4 mb-5">
+                <h5 class="fw-bold mb-3 text-primary">Compose New Announcement</h5>
+                <form method="POST" action="/teacher/announcements">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Target Audience</label>
+                            <select class="form-select shadow-sm" name="target_type" id="targetTypeSelect" onchange="handleTargetTypeChange()" required>
+                                <option value="all_assigned">All Assigned Candidates (All Groups)</option>
+                                <option value="group">Specific Group</option>
+                                <option value="assessment">Specific Assessment Cohort</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6" id="targetIdContainer" style="display: none;">
+                            <label class="form-label fw-semibold small" id="targetIdLabel">Select Target</label>
+                            <select class="form-select shadow-sm" name="target_id" id="targetIdSelect">
+                                <!-- Populated dynamically by JS -->
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Delivery Channel</label>
+                            <select class="form-select shadow-sm" name="channel" required>
+                                <option value="both" selected>In-App & Email (Recommended)</option>
+                                <option value="in_app">In-App Notification Only</option>
+                                <option value="email">Email Only</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold small">Announcement Title</label>
+                            <input type="text" class="form-control shadow-sm" name="title" placeholder="e.g. Schedule Update / Instructions for Midterm Exam" required minlength="2">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold small">Message Content</label>
+                            <textarea class="form-control shadow-sm" name="content" rows="4" placeholder="Type your announcement message here..." required minlength="2"></textarea>
+                        </div>
+
+                        <div class="col-12 text-end">
+                            <button type="submit" class="btn btn-primary fw-bold px-4 rounded-pill shadow-sm">
+                                🚀 Broadcast Announcement
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Announcement History -->
+            <h5 class="fw-bold mb-3">Announcement History</h5>
+            <div class="card glass-card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Title</th>
+                                    <th>Target</th>
+                                    <th>Channel</th>
+                                    <th>Recipients</th>
+                                    <th>Date</th>
+                                    <th class="text-end pe-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for a in announcements %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="fw-bold text-dark">{{ a.title }}</div>
+                                        <small class="text-muted text-truncate d-inline-block" style="max-width: 280px;">{{ a.content }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary-subtle text-secondary border">
+                                            {{ a.target_type|capitalize }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info border">
+                                            {{ a.channel|upper }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-semibold">{{ a.recipient_count }}</span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ a.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <span class="badge bg-success-subtle text-success border">
+                                            {{ a.status|upper }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5 text-muted">
+                                        No announcements sent yet.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+const groupsData = {{ groups_json|safe }};
+const examsData = {{ exams_json|safe }};
+
+function handleTargetTypeChange() {
+    const type = document.getElementById('targetTypeSelect').value;
+    const container = document.getElementById('targetIdContainer');
+    const select = document.getElementById('targetIdSelect');
+    const label = document.getElementById('targetIdLabel');
+
+    if (type === 'all_assigned') {
+        container.style.display = 'none';
+        select.removeAttribute('required');
+    } else if (type === 'group') {
+        container.style.display = 'block';
+        label.textContent = 'Select Group';
+        select.setAttribute('required', 'required');
+        select.innerHTML = groupsData.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+    } else if (type === 'assessment') {
+        container.style.display = 'block';
+        label.textContent = 'Select Assessment';
+        select.setAttribute('required', 'required');
+        select.innerHTML = examsData.map(e => `<option value="${e.id}">${e.title}</option>`).join('');
+    }
+}
+</script>
+{% endblock %}

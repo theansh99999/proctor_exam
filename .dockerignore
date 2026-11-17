@@ -1,0 +1,49 @@
+# Git
+.git
+.gitignore
+
+# Python cache & virtual environments
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.venv
+venv
+env
+ENV
+.pytest_cache
+
+# Environment & Secrets (NEVER bundle secrets into Docker images!)
+.env
+*.env
+*.pem
+*.key
+service-account.json
+/etc/secrets/
+
+# Test artifacts, reports & backups
+testing/
+backups/
+docs/
+.github/
+report.html
+analysis.txt
+commit.txt
+future_txt
+*.log
+*.tmp
+*.sqlite3
+*.db
+*.sha256
+*.backup
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore

@@ -7,10 +7,15 @@
             <h3 class="fw-bold mb-0 text-body-emphasis">⚙️ Account Settings</h3>
             <a href="/profile" class="btn btn-sm btn-outline-secondary fw-bold rounded-pill px-3 shadow-sm">👤 View Profile</a>
         </div>
-        
+
+        {% if error %}
+        <div class="alert alert-danger fw-medium">{{ error }}</div>
+        {% endif %}
+
         <div class="card glass-card border-0 shadow-sm p-4 mb-4 rounded-4">
             <div class="card-body">
                 <form action="/settings" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <h5 class="fw-bold mb-4 text-primary">Personal Information</h5>
                     <div class="mb-4">
                         <label class="form-label text-muted fw-bold">Full Name</label>
@@ -19,21 +24,26 @@
                     <div class="mb-4">
                         <label class="form-label text-muted fw-bold">Secure Email Address</label>
                         <input type="email" class="form-control form-control-lg bg-body-tertiary border-0 shadow-none text-muted fw-medium opacity-75" value="{{ user.email }}" disabled>
-                        <div class="form-text mt-2">Email boundary constraints applied. Account bindings cannot be changed securely from this panel. Please interact with Admin IT proxy.</div>
+                        <div class="form-text mt-2">Email cannot be changed from this panel.</div>
                     </div>
-                    
+
                     <hr class="border-secondary opacity-25 my-5">
-                    
+
                     <h5 class="fw-bold mb-4 text-danger">Security Updates</h5>
                     <div class="mb-4 p-4 rounded-3 border border-danger border-opacity-25" style="background: rgba(239, 68, 68, 0.05);">
-                        <label class="form-label text-danger fw-bold">Overwrite Password Authentication (Optional)</label>
-                        <input type="password" name="password" class="form-control form-control-lg bg-body border-danger border-opacity-25 shadow-sm mt-2" placeholder="Leave blank to maintain current credentials">
-                        <div class="form-text text-danger opacity-75 mt-2 fw-medium">Using a strong cryptographic pattern is advised on this platform.</div>
+                        <label class="form-label text-muted fw-bold">Current Password <span class="text-danger">*</span></label>
+                        <input type="password" name="current_password" class="form-control form-control-lg bg-body border-secondary border-opacity-25 shadow-sm mt-2" placeholder="Required to change password">
+                        <div class="form-text mt-2">Enter your current password to authorize a password change.</div>
                     </div>
-                    
+                    <div class="mb-4 p-4 rounded-3 border border-danger border-opacity-25" style="background: rgba(239, 68, 68, 0.05);">
+                        <label class="form-label text-danger fw-bold">New Password (Optional)</label>
+                        <input type="password" name="password" class="form-control form-control-lg bg-body border-danger border-opacity-25 shadow-sm mt-2" placeholder="Leave blank to keep current password" minlength="8">
+                        <div class="form-text text-danger opacity-75 mt-2 fw-medium">Minimum 8 characters. Leave blank to keep existing password.</div>
+                    </div>
+
                     <div class="d-flex justify-content-end gap-3 mt-5">
-                        <a href="{% if user.role == 'teacher' %}/teacher/dashboard{% else %}/student/dashboard{% endif %}" class="btn btn-light px-4 fw-bold border rounded-pill shadow-sm py-2">Abandon</a>
-                        <button type="submit" class="btn btn-primary-custom px-5 fw-bold shadow border-0 rounded-pill py-2">Lock In Changes</button>
+                        <a href="{% if user.role == 'teacher' %}/teacher/dashboard{% else %}/student/dashboard{% endif %}" class="btn btn-light px-4 fw-bold border rounded-pill shadow-sm py-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary-custom px-5 fw-bold shadow border-0 rounded-pill py-2">Save Changes</button>
                     </div>
                 </form>
             </div>
@@ -52,7 +62,7 @@
             <div id="settingsToast" class="toast align-items-center text-white bg-success border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
                 <div class="d-flex">
                     <div class="toast-body fw-bold">
-                        ✅ Configurations Updated Successfully.
+                        ✅ Settings updated successfully.
                     </div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>

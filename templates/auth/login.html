@@ -9,15 +9,16 @@
                 <h2 class="fw-bold text-primary">Login</h2>
                 <p class="text-muted">Welcome back to ExamProctor</p>
             </div>
-            
-            {% if request.query_params.error %}
-            <div class="alert alert-danger">{{ request.query_params.error }}</div>
+
+            {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
             {% endif %}
             {% if request.query_params.msg %}
             <div class="alert alert-success">{{ request.query_params.msg }}</div>
             {% endif %}
 
             <form method="POST" action="/login">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div class="mb-3">
                     <label class="form-label form-label-sm fw-medium">Email address</label>
                     <input type="email" name="email" class="form-control" required placeholder="name@example.com">

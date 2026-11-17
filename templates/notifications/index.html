@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+
+
+{% block content %}
+
+<div class="container my-5">
+
+    <div class="row justify-content-center">
+
+        <div class="col-lg-10">
+
+            <!-- Header -->
+
+            <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+
+                <div>
+
+                    <h2 class="fw-bold mb-1">🔔 Notification Center</h2>
+
+                    <p class="text-muted small mb-0">Stay informed about assessment schedules, submissions, evaluation results, and announcements.</p>
+
+                </div>
+
+                <div class="d-flex gap-2">
+
+                    <form method="POST" action="/api/v1/notifications/mark-all-read" onsubmit="event.preventDefault(); markAllRead();">
+
+                        <button type="submit" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-sm">
+
+                            ✓ Mark All Read
+
+                        </button>
+
+                    </form>
+
+                    <a href="/notifications/preferences" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
+
+                        ⚙️ Preferences
+
+                    </a>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Category Filters -->
+
+            <ul class="nav nav-pills mb-4 gap-2">
+
+                <li class="nav-item">
+
+                    <a class="nav-link {% if not selected_category %}active{% endif %} rounded-pill px-3 py-1" href="/notifications">All</a>
+
+                </li>
+
+                <li class="nav-item">
+
+                    <a class="nav-link {% if selected_category == 'lifecycle' %}active{% endif %} rounded-pill px-3 py-1" href="/notifications?category=lifecycle">Assessment Lifecycle</a>
+
+                </li>
+
+                <li class="nav-item">
+
+                    <a class="nav-link {% if selected_category == 'reminder' %}active{% endif %} rounded-pill px-3 py-1" href="/notifications?category=reminder">Reminders</a>
+
+                </li>
+
+                <li class="nav-item">
+
+                    <a class="nav-link {% if selected_category == 'candidate' %}active{% endif %} rounded-pill px-3 py-1" href="/notifications?category=candidate">Submissions</a>
+
+                </li>
+
+                <li class="nav-item">
+
+                    <a class="nav-link {% if selected_category == 'evaluation' %}active{% endif %} rounded-pill px-3 py-1" href="/notifications?category=evaluation">Results & Grading</a>
+
+                </li>
+
+                <li class="nav-item">
+
+                    <a class="nav-link {% if selected_category == 'announcement' %}active{% endif %} rounded-pill px-3 py-1" href="/notifications?category=announcement">Announcements</a>
+
+                </li>
+
+            </ul>
+
+
+
+            <!-- Notifications List -->
+
+            <div class="card glass-card border-0 shadow-sm">
+
+                <div class="card-body p-0">
+
+                    <div class="list-group list-group-flush rounded-3" id="notificationsContainer">
+
+                        {% for notif in notifications %}
+
+                        <div class="list-group-item p-4 border-bottom bg-transparent d-flex align-items-start {% if not notif.is_read %}bg-light-subtle fw-semibold{% endif %}" id="notif-{{ notif.id }}">
+
+                            <div class="rounded-circle d-flex justify-content-center align-items-center me-3 shadow-sm
+
+                                {% if notif.category == 'reminder' %}bg-warning-subtle text-warning
+
+                                {% elif notif.category == 'evaluation' %}bg-success-subtle text-success
+
+                                {% elif notif.category == 'announcement' %}bg-info-subtle text-info
+
+                                {% elif notif.category == 'candidate' %}bg-primary-subtle text-primary
+
+                                {% else %}bg-secondary-subtle text-secondary{% endif %}"
+
+                                style="width: 44px; height: 44px; flex-shrink: 0; font-size: 1.25rem;">
+
+                                {% if notif.category == 'reminder' %}⏰
+
+                                {% elif notif.category == 'evaluation' %}🎉
+
+                                {% elif notif.category == 'announcement' %}📣
+
+                                {% elif notif.category == 'candidate' %}📝
+
+                                {% else %}📋{% endif %}
+
+                            </div>
+
+
+
+                            <div class="flex-grow-1">
+
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+
+                                    <h6 class="mb-0 fw-bold">{{ notif.title }}</h6>
+
+                                    <small class="text-muted">{{ notif.created_at.strftime('%b %d, %I:%M %p') }}</small>
+
+                                </div>
+
+                                <p class="text-secondary mb-2 small" style="line-height: 1.5;">{{ notif.message }}</p>
+
+
+
+                                <div class="d-flex align-items-center gap-2">
+
+                                    {% if notif.action_url %}
+
+                                    <a href="{{ notif.action_url }}" class="btn btn-sm btn-outline-primary py-1 px-3 rounded-pill text-decoration-none">
+
+                                        View Details →
+
+                                    </a>
+
+                                    {% endif %}
+
+                                    {% if not notif.is_read %}
+
+                                    <button class="btn btn-sm btn-link text-decoration-none p-0 text-muted" onclick="markRead({{ notif.id }})">
+
+                                        Mark as read
+
+                                    </button>
+
+                                    {% endif %}
+
+                                    <button class="btn btn-sm btn-link text-decoration-none p-0 text-danger ms-auto" onclick="dismissNotif({{ notif.id }})">
+
+                                        Dismiss
+
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        {% else %}
+
+                        <div class="text-center p-5">
+
+                            <span class="fs-1 d-block mb-3 opacity-50">📭</span>
+
+                            <h5 class="fw-bold text-muted">All caught up!</h5>
+
+                            <p class="text-muted small mb-0">You have no active notifications in this category.</p>
+
+                        </div>
+
+                        {% endfor %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Back Link -->
+
+            <div class="text-center mt-4">
+
+                <a href="/dashboard" class="btn btn-light fw-bold px-4 rounded-pill shadow-sm text-muted">← Back to Dashboard</a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+async function markRead(id) {
+
+    try {
+
+        const res = await fetch(`/api/v1/notifications/${id}/read`, { method: 'POST' });
+
+        if (res.ok) {
+
+            window.location.reload();
+
+        }
+
+    } catch (e) {
+
+        console.error(e);
+
+    }
+
+}
+
+
+
+async function markAllRead() {
+
+    try {
+
+        const res = await fetch('/api/v1/notifications/mark-all-read', { method: 'POST' });
+
+        if (res.ok) {
+
+            window.location.reload();
+
+        }
+
+    } catch (e) {
+
+        console.error(e);
+
+    }
+
+}
+
+
+
+async function dismissNotif(id) {
+
+    if (!confirm('Dismiss this notification?')) return;
+
+    try {
+
+        const res = await fetch(`/api/v1/notifications/${id}`, { method: 'DELETE' });
+
+        if (res.ok) {
+
+            const el = document.getElementById(`notif-${id}`);
+
+            if (el) el.remove();
+
+        }
+
+    } catch (e) {
+
+        console.error(e);
+
+    }
+
+}
+
+</script>
+
+{% endblock %}

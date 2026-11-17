@@ -1,951 +1,3189 @@
 {% extends "base.html" %}
 
+
+
 {% block head %}
+
 <style>
+
     /* Fullscreen modal styling */
+
     #warning-modal {
+
         position: fixed;
+
         top: 0;
+
         left: 0;
+
         width: 100%;
+
         height: 100%;
+
         background: rgba(0, 0, 0, 0.7);
+
         display: none;
+
         align-items: center;
+
         justify-content: center;
+
         z-index: 10001;
+
     }
+
+
 
     #warning-modal.show {
+
         display: flex;
+
     }
+
+
 
     .warning-content {
+
         background: var(--surface-color);
+
         border-radius: 16px;
+
         padding: 2rem;
+
         max-width: 500px;
+
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+
         text-align: center;
+
         border: 2px solid #ef4444;
+
     }
+
+
 
     .warning-content h3 {
+
         color: #ef4444;
+
         font-weight: bold;
+
         margin-bottom: 1rem;
+
     }
+
+
 
     .warning-content p {
+
         color: var(--text-color);
+
         margin-bottom: 1.5rem;
+
         lines: 2;
+
     }
+
+
 
     .violation-counter {
+
         display: inline-block;
+
         background: #ef4444;
+
         color: white;
+
         padding: 0.5rem 1rem;
+
         border-radius: 8px;
+
         font-weight: bold;
+
         margin-bottom: 1.5rem;
+
     }
+
+
 
     .warning-content button {
+
         padding: 0.75rem 2rem;
+
         font-weight: bold;
+
         border-radius: 8px;
+
         border: none;
+
         cursor: pointer;
+
         transition: all 0.2s;
+
     }
+
+
 
     .warning-content .ok-btn {
+
         background: #4f46e5;
+
         color: white;
+
     }
+
+
 
     .warning-content .ok-btn:hover {
+
         background: #4338ca;
+
     }
+
+
 
     #overlay {
+
         position: fixed;
+
         top: 0;
+
         left: 0;
+
         width: 100vw;
+
         height: 100vh;
+
         background: rgba(255, 255, 255, 0.95);
+
         backdrop-filter: blur(10px);
+
         z-index: 9999;
+
         display: flex;
+
         align-items: center;
+
         justify-content: center;
+
         flex-direction: column;
+
         text-align: center;
+
     }
+
+
 
     #video-container {
+
         position: fixed;
+
         bottom: 20px;
+
         right: 20px;
+
         width: 200px;
+
         height: 150px;
+
         border-radius: 12px;
+
         overflow: hidden;
+
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
         border: 2px solid var(--primary-color);
+
         z-index: 1000;
+
         background: #000;
+
     }
+
+
 
     #video {
+
         width: 100%;
+
         height: 100%;
+
         object-fit: cover;
+
         transform: scaleX(-1);
+
     }
+
+
 
     .blurred {
+
         filter: blur(10px);
+
         pointer-events: none;
+
     }
+
+
 
     #system-check-modal {
+
         position: fixed;
+
         top: 0;
+
         left: 0;
+
         width: 100%;
+
         height: 100%;
+
         background: rgba(255, 255, 255, 0.98);
+
         backdrop-filter: blur(10px);
+
         z-index: 10000;
+
         display: flex;
+
         align-items: center;
+
         justify-content: center;
+
         flex-direction: column;
+
         text-align: center;
+
     }
+
+
 
     .system-check-content {
+
         background: var(--surface-color);
+
         border-radius: 16px;
+
         padding: 2.5rem;
+
         max-width: 600px;
+
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+
         border: 2px solid #4f46e5;
+
     }
+
+
 
     .system-check-content h2 {
+
         color: #4f46e5;
+
         font-weight: bold;
+
         margin-bottom: 1.5rem;
+
         display: flex;
+
         align-items: center;
+
         justify-content: center;
+
         gap: 0.5rem;
+
     }
+
+
 
     .system-check-content p {
+
         color: var(--text-color);
+
         margin-bottom: 1.5rem;
+
         font-size: 0.95rem;
+
     }
+
+
 
     .check-list {
+
         list-style: none;
+
         padding: 0;
+
         margin: 2rem 0;
+
         text-align: left;
+
     }
+
+
 
     .check-item {
+
         display: flex;
+
         align-items: center;
+
         padding: 1rem;
+
         margin: 0.5rem 0;
+
         background: rgba(79, 70, 229, 0.05);
+
         border-radius: 8px;
+
         border-left: 4px solid #ccc;
+
         transition: all 0.3s;
+
     }
+
+
 
     .check-item.checking {
+
         background: rgba(251, 191, 36, 0.1);
+
         border-left-color: #fbbf24;
+
     }
+
+
 
     .check-item.success {
+
         background: rgba(16, 185, 129, 0.1);
+
         border-left-color: #10b981;
+
     }
+
+
 
     .check-item.failed {
+
         background: rgba(239, 68, 68, 0.1);
+
         border-left-color: #ef4444;
+
     }
+
+
 
     .check-icon {
+
         font-size: 1.5rem;
+
         margin-right: 1rem;
+
         min-width: 2rem;
+
         text-align: center;
+
     }
+
+
 
     .check-text {
+
         flex: 1;
+
         text-align: left;
+
     }
+
+
 
     .check-text .label {
+
         font-weight: bold;
+
         color: var(--text-color);
+
         display: block;
+
     }
+
+
 
     .check-text .details {
+
         font-size: 0.85rem;
+
         color: #666;
+
         margin-top: 0.25rem;
+
     }
+
+
 
     .system-check-buttons {
+
         display: flex;
+
         gap: 1rem;
+
         margin-top: 2rem;
+
         justify-content: center;
+
     }
+
+
 
     .system-check-buttons button {
+
         padding: 0.75rem 1.5rem;
+
         font-weight: bold;
+
         border-radius: 8px;
+
         border: none;
+
         cursor: pointer;
+
         transition: all 0.2s;
+
     }
+
+
 
     .retry-btn {
+
         background: #4f46e5;
+
         color: white;
+
     }
+
+
 
     .retry-btn:hover {
+
         background: #4338ca;
+
     }
+
+
 
     .retry-btn:disabled {
+
         background: #ccc;
+
         cursor: not-allowed;
+
     }
+
+
 
     .proceed-btn {
+
         background: #10b981;
+
         color: white;
+
     }
+
+
 
     .proceed-btn:hover:not(:disabled) {
+
         background: #059669;
+
     }
+
+
 
     .proceed-btn:disabled {
+
         background: #ccc;
+
         cursor: not-allowed;
+
     }
+
+
 
     .error-message {
+
         background: rgba(239, 68, 68, 0.1);
+
         border: 1px solid #ef4444;
+
         color: #991b1b;
+
         padding: 1rem;
+
         border-radius: 8px;
+
         margin-top: 1rem;
+
         text-align: left;
+
     }
+
 </style>
+
 {% endblock %}
 
+
+
 {% block content %}
+
 <!-- System Check Modal -->
+
 <div id="system-check-modal">
+
     <div class="system-check-content">
+
         <h2>🔧 System Check</h2>
+
         <p>We need to verify your device has the required equipment for the exam.</p>
-        
+
+
+
         <ul class="check-list">
+
             <li class="check-item checking" id="camera-check">
+
                 <div class="check-icon" id="camera-icon">⏳</div>
+
                 <div class="check-text">
+
                     <span class="label">Camera</span>
+
                     <span class="details" id="camera-details">Checking...</span>
+
                 </div>
+
             </li>
+
             <li class="check-item checking" id="mic-check">
+
                 <div class="check-icon" id="mic-icon">⏳</div>
+
                 <div class="check-text">
+
                     <span class="label">Microphone</span>
+
                     <span class="details" id="mic-details">Checking...</span>
+
                 </div>
+
             </li>
+
         </ul>
+
+
 
         <div id="error-message" class="error-message" style="display: none;"></div>
 
+
+
         <div class="system-check-buttons">
+
             <button class="retry-btn" id="retry-check-btn" onclick="runSystemCheck();">🔄 Retry Check</button>
+
             <button class="proceed-btn" id="proceed-btn" onclick="proceedToExam();" disabled>✓ Proceed</button>
+
         </div>
+
     </div>
+
 </div>
+
+
 
 <div id="overlay" style="display: none;">
+
     <div class="card glass-card p-5" style="max-width: 500px;">
+
         <h2 class="fw-bold text-danger mb-3">Strict Proctoring Enabled</h2>
+
         <p class="text-muted">This exam requires <strong>Fullscreen Mode</strong> and <strong>Webcam Access</strong> for
+
             AI Proctoring. Violations (exiting fullscreen, multiple faces, switching tabs) will be flagged. 5 Flags =
+
             Auto-Submit.</p>
+
         <button id="startBtn" class="btn btn-primary-custom btn-lg w-100 mt-4">I Understand, Start Exam</button>
+
     </div>
+
 </div>
+
+
 
 <div id="exam_content" class="blurred container-fluid py-4">
+
     <form method="POST" action="/student/submit_exam/{{ exam.id }}" id="exam_form">
+
         <div class="row">
+
             <!-- Questions Column -->
+
             <div class="col-lg-8 mb-4">
+
                 <div class="mb-4">
+
                     <h2 class="fw-bold mb-1 text-primary">{{ exam.title }}</h2>
+
                     <p class="text-muted mb-0 fw-medium">Total Duration: {{ exam.duration_minutes }} minutes</p>
+
                 </div>
+
+
 
                 {% for q in questions %}
-                <div class="card glass-card mb-4 border-0 shadow-sm question-card" id="qcard-{{ loop.index }}">
+
+                <div class="card glass-card mb-4 border-0 shadow-sm question-card" id="qcard-{{ loop.index }}" data-qindex="{{ loop.index }}" data-qid="{{ q.id }}" data-qtype="{{ q.question_type or 'single_choice' }}" data-timelimit="{{ q.time_limit_seconds or 0 }}">
+
                     <div class="card-body p-4">
+
                         <div class="d-flex justify-content-between align-items-start mb-3">
-                            <h5 class="fw-bold mb-0" style="color: var(--text-color);">{{ loop.index }}. {{ q.text }}
+
+                            <h5 class="fw-bold mb-0" style="color: var(--text-color);">
+
+                                <span class="badge bg-primary-subtle text-primary border me-2">Q{{ loop.index }}</span>
+
+                                {{ q.text }}
+
+                                {% if exam.timer_type == 'per_question' and q.time_limit_seconds %}
+
+                                <span class="badge bg-secondary bg-opacity-25 text-secondary border ms-2 fs-6 fw-normal rounded-pill">
+
+                                    ⏱️ {{ q.time_limit_seconds }}s
+
+                                </span>
+
+                                {% endif %}
+
+                                <span class="badge bg-light text-muted border ms-2 small fw-normal">{{ q.marks or exam.default_marks }} pts</span>
+
                             </h5>
+
                             <button type="button"
+
                                 class="btn btn-sm btn-outline-warning bookmark-btn fw-bold ms-3 shadow-sm rounded-pill px-3"
-                                data-qindex="{{ loop.index }}" style="white-space: nowrap;">
-                                📌 Bookmark
+
+                                data-qindex="{{ loop.index }}" data-qid="{{ q.id }}" style="white-space: nowrap;">
+
+                                🏷️ Mark for Review
+
                             </button>
+
                         </div>
+
+
+
+                        <!-- 1. Multiple-Select MCQ -->
+
+                        {% if q.question_type == 'multiple_choice' %}
+
+                        <div class="alert alert-info py-1 px-3 small mb-2">Select all correct options:</div>
 
                         {% for opt in q.ops %}
-                        <div class="form-check mb-2 custom-radio-wrapper py-2 px-3 rounded"
-                            style="transition: all 0.2s;">
-                            <input class="form-check-input q-option border-secondary" type="radio"
-                                name="question_{{ q.id }}" id="opt_{{ opt.id }}" value="{{ opt.id }}"
-                                data-qindex="{{ loop.index }}">
-                            <label class="form-check-label w-100 ms-2" for="opt_{{ opt.id }}"
-                                style="cursor: pointer; color: var(--text-color);">
+
+                        <div class="form-check mb-2 custom-check-wrapper py-2 px-3 rounded border bg-light bg-opacity-50" style="transition: all 0.2s;">
+
+                            <input class="form-check-input q-option q-multiselect border-secondary" type="checkbox"
+
+                                name="question_{{ q.id }}[]" id="opt_{{ opt.id }}" value="{{ opt.id }}"
+
+                                data-qindex="{{ loop.index }}" data-qid="{{ q.id }}">
+
+                            <label class="form-check-label w-100 ms-2" for="opt_{{ opt.id }}" style="cursor: pointer; color: var(--text-color);">
+
                                 {{ opt.text }}
+
                             </label>
+
                         </div>
+
                         {% endfor %}
+
+
+
+                        <!-- 2. Short Answer -->
+
+                        {% elif q.question_type == 'short_answer' %}
+
+                        <div class="mb-3">
+
+                            <label class="form-label text-muted small fw-bold">Your Short Answer:</label>
+
+                            <input type="text" class="form-control q-text-input" name="question_{{ q.id }}"
+
+                                placeholder="Type your concise answer here..."
+
+                                data-qindex="{{ loop.index }}" data-qid="{{ q.id }}">
+
+                        </div>
+
+
+
+                        <!-- 3. Descriptive Answer -->
+
+                        {% elif q.question_type == 'descriptive' %}
+
+                        <div class="mb-3">
+
+                            <label class="form-label text-muted small fw-bold">Your Descriptive Answer:</label>
+
+                            <textarea class="form-control q-textarea-input" name="question_{{ q.id }}" rows="5"
+
+                                placeholder="Explain in detail..."
+
+                                data-qindex="{{ loop.index }}" data-qid="{{ q.id }}"></textarea>
+
+                        </div>
+
+
+
+                        <!-- 4. Code / Programming -->
+
+                        {% elif q.question_type == 'code' %}
+
+                        <div class="mb-3">
+
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+
+                                <label class="form-label text-muted small fw-bold mb-0">Write Code Solution:</label>
+
+                                <span class="badge bg-dark font-monospace text-uppercase">{{ q.type_config_dict.language or 'Code' if q.type_config_dict else 'Code' }}</span>
+
+                            </div>
+
+                            <textarea class="form-control font-monospace q-code-input" name="question_{{ q.id }}" rows="8"
+
+                                style="background: #1e1e2e; color: #a6accd; font-size: 0.9rem;"
+
+                                placeholder="Write your code here..."
+
+                                data-qindex="{{ loop.index }}" data-qid="{{ q.id }}">{{ q.type_config_dict.skeleton if q.type_config_dict and q.type_config_dict.skeleton else '' }}</textarea>
+
+                        </div>
+
+
+
+                        <!-- 5. Single Choice & True/False (Radio) -->
+
+                        {% else %}
+
+                        {% for opt in q.ops %}
+
+                        <div class="form-check mb-2 custom-radio-wrapper py-2 px-3 rounded border bg-light bg-opacity-50" style="transition: all 0.2s;">
+
+                            <input class="form-check-input q-option border-secondary" type="radio"
+
+                                name="question_{{ q.id }}" id="opt_{{ opt.id }}" value="{{ opt.id }}"
+
+                                data-qindex="{{ loop.index }}" data-qid="{{ q.id }}">
+
+                            <label class="form-check-label w-100 ms-2" for="opt_{{ opt.id }}" style="cursor: pointer; color: var(--text-color);">
+
+                                {{ opt.text }}
+
+                            </label>
+
+                        </div>
+
+                        {% endfor %}
+
+                        {% endif %}
+
+
+
+                        <!-- Card Action Controls -->
+
+                        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top flex-wrap gap-2">
+
+                            <button type="button" class="btn btn-sm btn-outline-secondary clear-response-btn" data-qindex="{{ loop.index }}" data-qid="{{ q.id }}">
+
+                                ✕ Clear Response
+
+                            </button>
+
+                            <div class="d-flex gap-2">
+
+                                {% if loop.index > 1 %}
+
+                                <button type="button" class="btn btn-sm btn-outline-primary prev-btn" data-qindex="{{ loop.index }}">
+
+                                    &larr; Previous
+
+                                </button>
+
+                                {% endif %}
+
+                                {% if loop.index < questions|length %}
+
+                                <button type="button" class="btn btn-sm btn-primary save-next-btn" data-qindex="{{ loop.index }}" data-qid="{{ q.id }}">
+
+                                    Save & Next &rarr;
+
+                                </button>
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
                     </div>
+
                 </div>
+
                 {% endfor %}
+
             </div>
+
+
 
             <!-- Navigation Palette Column -->
+
             <div class="col-lg-4">
+
                 <div class="card glass-card border-0 shadow-sm sticky-top" style="top: 20px; z-index: 10;">
+
                     <div class="card-header bg-transparent border-0 pt-4 pb-2">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+
                             <h5 class="fw-bold mb-0">Question Palette</h5>
+
                             <div class="timer fw-bold fs-4 text-danger px-3 py-1 bg-danger bg-opacity-10 border border-danger rounded shadow-sm"
+
                                 id="timer_display" style="font-variant-numeric: tabular-nums;">--:--</div>
+
                         </div>
+
+
+
+                        <!-- Autosave Server Indicator -->
+
+                        <div class="d-flex justify-content-between align-items-center mb-3 small">
+
+                            <span class="text-muted">Status:</span>
+
+                            <span id="autosave-indicator" class="text-success fw-bold">✓ Synced to Server</span>
+
+                        </div>
+
+
+
                         <div class="d-flex flex-wrap gap-2 mb-3 text-muted small fw-medium">
-                            <div class="d-flex align-items-center"><span
-                                    class="badge border border-secondary text-secondary me-1"
-                                    style="width:14px;height:14px;"> </span> Not Attempted</div>
-                            <div class="d-flex align-items-center"><span class="badge bg-success me-1"
-                                    style="width:14px;height:14px;"> </span> Attempted</div>
-                            <div class="d-flex align-items-center"><span
-                                    class="badge bg-warning text-body-emphasis me-1" style="width:14px;height:14px;">
-                                </span> Bookmarked</div>
+
+                            <div class="d-flex align-items-center"><span class="badge border border-secondary text-secondary me-1" style="width:14px;height:14px;"> </span> Not Attempted</div>
+
+                            <div class="d-flex align-items-center"><span class="badge bg-success me-1" style="width:14px;height:14px;"> </span> Attempted</div>
+
+                            <div class="d-flex align-items-center"><span class="badge bg-warning text-body-emphasis me-1" style="width:14px;height:14px;"> </span> Review</div>
+
                         </div>
+
                         <hr class="m-0 border-secondary opacity-25">
+
                     </div>
+
                     <div class="card-body p-4 pt-3">
+
                         <div class="d-flex flex-wrap gap-2 mb-4" id="palette-grid">
+
                             {% for q in questions %}
+
                             <button type="button"
+
                                 class="btn btn-outline-secondary palette-btn rounded-circle fw-bold d-flex justify-content-center align-items-center p-0 m-0"
+
                                 style="width: 45px; height: 45px; transition: all 0.2s; border-width: 2px;"
+
                                 data-qindex="{{ loop.index }}" id="palette-btn-{{ loop.index }}">
+
                                 {{ loop.index }}
+
                             </button>
+
                             {% endfor %}
+
                         </div>
+
+
 
                         <div class="text-center mt-2">
-                            <button type="submit" class="btn btn-primary-custom btn-lg w-100 shadow border-2">🚀 Submit
-                                Exam</button>
+
+                            <button type="button" class="btn btn-primary-custom btn-lg w-100 shadow border-2" onclick="openSubmitModal()">
+
+                                🚀 Submit Assessment
+
+                            </button>
+
                         </div>
+
                     </div>
+
                 </div>
+
             </div>
+
         </div>
+
     </form>
+
 </div>
+
+
+
+<!-- Final Submission Confirmation Modal -->
+
+<div class="modal fade" id="submitConfirmModal" tabindex="-1" aria-hidden="true" style="z-index: 10002;">
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content glass-card border-0 shadow">
+
+            <div class="modal-header border-0 pb-0">
+
+                <h5 class="modal-title fw-bold">Final Assessment Submission</h5>
+
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+            </div>
+
+            <div class="modal-body py-4">
+
+                <p class="text-muted mb-3">Please review your question summary before submitting. Once submitted, your attempt will be locked and cannot be edited.</p>
+
+
+
+                <div class="row g-2 text-center mb-3">
+
+                    <div class="col-4">
+
+                        <div class="p-2 border rounded bg-success bg-opacity-10 text-success">
+
+                            <h4 class="fw-bold mb-0" id="summary-answered">0</h4>
+
+                            <small class="fw-bold">Answered</small>
+
+                        </div>
+
+                    </div>
+
+                    <div class="col-4">
+
+                        <div class="p-2 border rounded bg-secondary bg-opacity-10 text-secondary">
+
+                            <h4 class="fw-bold mb-0" id="summary-unanswered">{{ questions|length }}</h4>
+
+                            <small class="fw-bold">Unanswered</small>
+
+                        </div>
+
+                    </div>
+
+                    <div class="col-4">
+
+                        <div class="p-2 border rounded bg-warning bg-opacity-10 text-warning">
+
+                            <h4 class="fw-bold mb-0" id="summary-marked">0</h4>
+
+                            <small class="fw-bold">Review</small>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="alert alert-warning py-2 small mb-0">
+
+                    ⚠️ Ensure you have reviewed all flagged questions before submitting.
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer border-0 pt-0">
+
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Resume Assessment</button>
+
+                <button type="button" class="btn btn-success fw-bold px-4" onclick="confirmFinalSubmit()">Yes, Submit Assessment</button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
 
 <div id="video-container" style="display:none;">
+
     <video id="video" autoplay playsinline></video>
+
 </div>
+
+
 
 <!-- Warning Modal -->
+
 <div id="warning-modal">
+
     <div class="warning-content">
+
         <h3>⚠️ Violation Detected</h3>
+
         <p id="warning-message">You have exited fullscreen mode or switched tabs.</p>
+
         <div class="violation-counter">
+
             <span id="violation-count">1</span> / <span id="max-violations">5</span> Violations
+
         </div>
+
         <p style="font-size: 0.9rem; color: #ef4444;">Please return to the exam immediately. <strong id="remaining-warnings">{{remaining_warnings_text}}</strong></p>
+
         <button class="ok-btn" onclick="document.getElementById('warning-modal').classList.remove('show'); attemptAutoFullscreen();">OK - I Understand</button>
+
     </div>
+
 </div>
+
 {% endblock %}
 
+
+
 {% block scripts %}
+
 <script type="module">
+
     import { FaceDetector, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
 
+
+
     const startBtn = document.getElementById('startBtn');
+
     const overlay = document.getElementById('overlay');
+
     const examContent = document.getElementById('exam_content');
+
     const video = document.getElementById('video');
+
     const videoContainer = document.getElementById('video-container');
 
+
+
     let faceDetector;
+
     let runningMode = "VIDEO";
+
     let lastVideoTime = -1;
+
     let warningCount = 0;
-    const MAX_WARNINGS = 5;
+
+    const MAX_WARNINGS = {{ policy.violation_threshold if policy else 5 }};
+
+    const AUTO_SUBMIT_THRESHOLD = {{ policy.auto_submit_threshold if (policy and policy.auto_submit_threshold) else 0 }};
+
+    const POLICY_WEBCAM_REQUIRED = {{ 'true' if (not policy or policy.webcam_required) else 'false' }};
+
+    const POLICY_MIC_REQUIRED = {{ 'true' if (policy and policy.microphone_required) else 'false' }};
+
+    const POLICY_FULLSCREEN_REQUIRED = {{ 'true' if (not policy or policy.fullscreen_required) else 'false' }};
+
+    const POLICY_TAB_SWITCH = {{ 'true' if (not policy or policy.tab_switch_detection) else 'false' }};
+
+    const POLICY_COPY_PASTE = {{ 'true' if (not policy or policy.copy_paste_restricted) else 'false' }};
+
     let tabSwitchWarningShown = false; // Prevent multiple simultaneous warnings
+
     let examActive = false; // Prevents logging cheats during permission checks
+
+
 
     // (violation modal is shown directly inside logCheat)
 
 
+
+
+
     // AI Initialization
+
     async function initializeVision() {
+
         try {
+
             const vision = await FilesetResolver.forVisionTasks(
+
                 "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm"
+
             );
+
             faceDetector = await FaceDetector.createFromOptions(vision, {
+
                 baseOptions: {
+
                     modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite`,
+
                     delegate: "GPU"
+
                 },
+
                 runningMode: runningMode
+
             });
+
             console.log("MediaPipe Model Loaded Successfully");
+
         } catch (e) {
+
             console.error("Failed to load Face Detector", e);
+
         }
+
     }
+
+
 
     initializeVision();
 
+
+
     // Guard against double submission
+
     let isSubmitting = false;
 
+
+
     // Force-submit the exam (only when violation limit reached)
+
     function forceSubmitExam() {
+
         if (isSubmitting) return;
+
         isSubmitting = true;
+
         examActive = false;
+
         document.getElementById('exam_form').submit();
+
     }
 
-    // Pure client-side violation handler — NO DB, NO API calls
-    // Counts violations in memory, shows warning modal, auto-submits on limit
+
+
+    let lastCheatLoggedAt = 0;
+
+    let lastCheatDescription = "";
+
+
+
+    async function persistCheatToBackend(description) {
+
+        try {
+
+            await fetch('/student/api/cheat_flag', {
+
+                method: 'POST',
+
+                headers: {
+
+                    'Content-Type': 'application/json'
+
+                },
+
+                body: JSON.stringify({
+
+                    exam_id: {{ exam.id }},
+
+                    description: description
+
+                })
+
+            });
+
+        } catch (e) {
+
+            console.error('Failed to report cheat flag:', e);
+
+        }
+
+    }
+
+
+
+    // Violation handler connected to backend API & WebSocket alert
+
     function logCheat(description) {
+
         if (!examActive || isSubmitting) return;
 
+
+
+        const now = Date.now();
+
+        // Client-side debounce: ignore identical violation within 3 seconds
+
+        if (description === lastCheatDescription && (now - lastCheatLoggedAt) < 3000) {
+
+            return;
+
+        }
+
+        lastCheatLoggedAt = now;
+
+        lastCheatDescription = description;
+
+
+
         warningCount++;
+
         document.getElementById('violation-count').innerText = warningCount;
+
         document.getElementById('max-violations').innerText = MAX_WARNINGS;
+
         document.getElementById('warning-message').innerText = description;
 
-        if (warningCount >= MAX_WARNINGS) {
-            // Limit reached — auto-submit
+
+
+        // Persist to backend and notify teacher via WebSocket
+
+        persistCheatToBackend(description);
+
+
+
+        if (AUTO_SUBMIT_THRESHOLD > 0 && warningCount >= AUTO_SUBMIT_THRESHOLD) {
+
+            // Auto-submit threshold reached
+
             document.getElementById('remaining-warnings').innerText = 'Violation limit reached! Auto-submitting exam...';
+
             document.getElementById('warning-modal').classList.add('show');
+
             setTimeout(() => forceSubmitExam(), 2000);
-        } else {
-            // Show warning only
-            const remaining = MAX_WARNINGS - warningCount;
-            document.getElementById('remaining-warnings').innerText =
-                `${remaining} more violation${remaining > 1 ? 's' : ''} will auto-submit your exam.`;
+
+        } else if (warningCount >= MAX_WARNINGS) {
+
+            // Warning threshold reached
+
+            document.getElementById('remaining-warnings').innerText = 'Violation limit reached! Violations logged for examiner review.';
+
             document.getElementById('warning-modal').classList.add('show');
+
+        } else {
+
+            // Show warning only
+
+            const remaining = MAX_WARNINGS - warningCount;
+
+            document.getElementById('remaining-warnings').innerText =
+
+                `${remaining} more violation${remaining > 1 ? 's' : ''} will reach threshold.`;
+
+            document.getElementById('warning-modal').classList.add('show');
+
         }
+
     }
+
+
 
     // Auto-fullscreen function
+
     async function attemptAutoFullscreen() {
+
         try {
+
             if (!document.fullscreenElement) {
+
                 await document.documentElement.requestFullscreen();
+
             }
+
         } catch (err) {
+
             console.log('Could not restore fullscreen:', err);
+
         }
+
     }
+
+
 
     // MediaPipe prediction loop
+
     async function predictWebcam() {
+
         if (!faceDetector) {
+
             window.requestAnimationFrame(predictWebcam);
+
             return;
+
         }
+
+
 
         if (video.videoWidth > 0 && video.currentTime !== lastVideoTime) {
+
             lastVideoTime = video.currentTime;
+
             try {
+
                 const detections = faceDetector.detectForVideo(video, performance.now()).detections;
 
+
+
                 // Debouncing counters and tracking
+
                 if (detections.length === 0) {
+
                     if (!window.noFaceTimer) {
+
                         window.noFaceTimer = setTimeout(() => {
+
                             logCheat("No face detected in webcam.");
+
                             window.noFaceTimer = null;
+
                         }, 6000);
+
                     }
+
                 } else if (detections.length > 1) {
+
                     if (!window.multipleFacesTimer) {
+
                         window.multipleFacesTimer = setTimeout(() => {
+
                             logCheat("Multiple faces detected in frame.");
+
                             window.multipleFacesTimer = null;
+
                         }, 4000);
+
                     }
+
                 } else {
+
                     // Check head pose (Looking away - extreme left/right or up/down)
+
                     const keypoints = detections[0].keypoints;
+
                     if (keypoints && keypoints.length >= 6) {
+
                         // MediaPipe blaze_face keypoints:
-                        // 0: Right Eye, 1: Left Eye, 2: Nose, 
+
+                        // 0: Right Eye, 1: Left Eye, 2: Nose,
+
                         // 3: Mouth, 4: Right Ear, 5: Left Ear
+
                         const rightEye = keypoints[0];
+
                         const leftEye = keypoints[1];
+
                         const nose = keypoints[2];
+
                         const mouth = keypoints[3];
+
                         const rightEar = keypoints[4];
+
                         const leftEar = keypoints[5];
 
+
+
                         // ===== HORIZONTAL HEAD POSE (Left/Right) =====
+
                         const eyeDist = Math.abs(leftEye.x - rightEye.x);
+
                         if (eyeDist > 0.01) {
+
                             // noseRatio: 0.5 = straight, <0.15 = extreme left, >0.85 = extreme right
+
                             const noseRatio = Math.abs(nose.x - rightEye.x) / eyeDist;
-                            
+
+
+
                             // EXTREME LEFT - looking at computer to the left
+
                             if (noseRatio < 0.05) {
+
                                 if (!window.extremeLeftTimer) {
+
                                     window.extremeLeftTimer = setTimeout(() => {
+
                                         logCheat("Extreme left head turn detected.");
+
                                         window.extremeLeftTimer = null;
+
                                     }, 3000);
+
                                 }
+
                             } else {
+
                                 clearTimeout(window.extremeLeftTimer);
+
                                 window.extremeLeftTimer = null;
+
                             }
-                            
+
+
+
                             // EXTREME RIGHT - looking at computer to the right
+
                             if (noseRatio > 0.95) {
+
                                 if (!window.extremeRightTimer) {
+
                                     window.extremeRightTimer = setTimeout(() => {
+
                                         logCheat("Extreme right head turn detected.");
+
                                         window.extremeRightTimer = null;
+
                                     }, 3000);
+
                                 }
+
                             } else {
+
                                 clearTimeout(window.extremeRightTimer);
+
                                 window.extremeRightTimer = null;
+
                             }
-                            
+
+
+
                             // MODERATE TURN - just looking away
+
                             if ((noseRatio < 0.2 || noseRatio > 0.8) && noseRatio >= 0.05 && noseRatio <= 0.95) {
+
                                 if (!window.lookAwayTimer) {
+
                                     window.lookAwayTimer = setTimeout(() => {
+
                                         logCheat("Looking away from screen detected.");
+
                                         window.lookAwayTimer = null;
+
                                     }, 5000);
+
                                 }
+
                             } else {
+
                                 clearTimeout(window.lookAwayTimer);
+
                                 window.lookAwayTimer = null;
+
                             }
+
                         }
+
+
 
                         // ===== VERTICAL HEAD POSE (Up/Down) =====
+
                         const eyeCenter = (rightEye.y + leftEye.y) / 2;
+
                         const mouthNoseY = (mouth.y + nose.y) / 2;
+
                         const verticalDist = Math.abs(mouthNoseY - eyeCenter);
-                        
+
+
+
                         // If nose is too high (looking down) or too low (looking up)
+
                         const verticalRatio = Math.abs(nose.y - eyeCenter) / Math.max(verticalDist, 0.05);
-                        
+
+
+
                         if (verticalRatio > 2.5) {
+
                             if (!window.lookDownTimer) {
+
                                 window.lookDownTimer = setTimeout(() => {
+
                                     logCheat("Looking down excessively.");
+
                                     window.lookDownTimer = null;
+
                                 }, 5000);
+
                             }
+
                         } else {
+
                             clearTimeout(window.lookDownTimer);
+
                             window.lookDownTimer = null;
+
                         }
+
                     }
 
+
+
                     clearTimeout(window.noFaceTimer);
+
                     window.noFaceTimer = null;
+
                     clearTimeout(window.multipleFacesTimer);
+
                     window.multipleFacesTimer = null;
+
                 }
+
             } catch (e) { /* Ignore dropped frames */ }
+
         }
+
         window.requestAnimationFrame(predictWebcam);
+
     }
+
+
+
 
 
     // Audio Detection (Talking)
+
     let audioContext;
+
     function startAudioMonitoring(stream) {
+
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
         const analyser = audioContext.createAnalyser();
+
         const microphone = audioContext.createMediaStreamSource(stream);
+
         const scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
 
+
+
         analyser.smoothingTimeConstant = 0.8;
+
         analyser.fftSize = 1024;
 
+
+
         microphone.connect(analyser);
+
         analyser.connect(scriptProcessor);
+
         scriptProcessor.connect(audioContext.destination);
 
+
+
         scriptProcessor.onaudioprocess = function () {
+
             const array = new Uint8Array(analyser.frequencyBinCount);
+
             analyser.getByteFrequencyData(array);
+
             let values = 0;
+
             for (let i = 0; i < array.length; i++) {
+
                 values += (array[i]);
+
             }
+
             const average = values / array.length;
 
+
+
             // Threshold for talking/noise — 55 filters out ambient room noise
+
             if (average > 55) { // Raised from 35 (was too sensitive — ambient noise was triggering)
+
                 if (!window.talkingTimer) {
+
                     window.talkingTimer = setTimeout(() => {
+
                         logCheat("Talking or background noise detected.");
+
                         window.talkingTimer = null;
+
                     }, 5000); // Raised from 2.5s → 5s: must be sustained noise to log
+
                 }
+
             } else {
+
                 clearTimeout(window.talkingTimer);
+
                 window.talkingTimer = null;
+
             }
+
         };
+
     }
+
+
 
     // Start Exam Process
-    startBtn.addEventListener('click', async () => {
-        try {
-            await document.documentElement.requestFullscreen();
-            // Request Both Video and Audio
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            video.srcObject = stream;
 
-            video.addEventListener("loadeddata", predictWebcam);
-            startAudioMonitoring(stream);
+    startBtn.addEventListener('click', async () => {
+
+        try {
+
+            if (POLICY_FULLSCREEN_REQUIRED) {
+
+                await document.documentElement.requestFullscreen();
+
+            }
+
+
+
+            if (POLICY_WEBCAM_REQUIRED || POLICY_MIC_REQUIRED) {
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+
+                    video: POLICY_WEBCAM_REQUIRED,
+
+                    audio: POLICY_MIC_REQUIRED
+
+                });
+
+                window.examStream = stream;
+
+
+
+                if (POLICY_WEBCAM_REQUIRED) {
+
+                    video.srcObject = stream;
+
+                    video.addEventListener("loadeddata", predictWebcam);
+
+                    videoContainer.style.display = 'block';
+
+
+
+                    // Track Camera Disconnect / Unplug
+
+                    if (stream.getVideoTracks().length > 0) {
+
+                        const vTrack = stream.getVideoTracks()[0];
+
+                        vTrack.addEventListener('ended', () => {
+
+                            logCheat("Camera was disconnected or turned off.");
+
+                        });
+
+                    }
+
+                } else {
+
+                    videoContainer.style.display = 'none';
+
+                }
+
+
+
+                if (POLICY_MIC_REQUIRED) {
+
+                    startAudioMonitoring(stream);
+
+                }
+
+            } else {
+
+                videoContainer.style.display = 'none';
+
+            }
+
+
 
             overlay.style.display = 'none';
+
             examContent.classList.remove('blurred');
-            videoContainer.style.display = 'block';
+
+
 
             examActive = true; // Exam is officially active now
+
             startTimer();
+
         } catch (err) {
-            alert("Camera and Microphone permissions are required to start the exam. Please allow access and try again.");
+
+            alert("Device permissions required by assessment proctoring policy were denied. Please grant required access to proceed.");
+
             console.error(err);
+
         }
+
     });
+
+
+
+    // Camera Reconnect Auto-Detection
+
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+
+        navigator.mediaDevices.addEventListener('devicechange', async () => {
+
+            if (!examActive || !POLICY_WEBCAM_REQUIRED) return;
+
+            try {
+
+                const devices = await navigator.mediaDevices.enumerateDevices();
+
+                const hasCam = devices.some(d => d.kind === 'videoinput');
+
+                if (hasCam && (!video.srcObject || video.srcObject.getVideoTracks().every(t => t.readyState === 'ended'))) {
+
+                    console.log("[PROCTORING] Device reconnected. Restoring camera stream...");
+
+                    const newStream = await navigator.mediaDevices.getUserMedia({
+
+                        video: true,
+
+                        audio: POLICY_MIC_REQUIRED
+
+                    });
+
+                    video.srcObject = newStream;
+
+                }
+
+            } catch (reconnectErr) {
+
+                console.log("Device change check:", reconnectErr);
+
+            }
+
+        });
+
+    }
+
+
+
+    // Copy / Paste Restriction Policy Enforcement
+
+    if (POLICY_COPY_PASTE) {
+
+        document.addEventListener('copy', (e) => {
+
+            if (examActive) {
+
+                e.preventDefault();
+
+                logCheat("Attempted copy action on assessment question.");
+
+            }
+
+        });
+
+        document.addEventListener('paste', (e) => {
+
+            if (examActive) {
+
+                e.preventDefault();
+
+                logCheat("Attempted paste action on assessment question.");
+
+            }
+
+        });
+
+    }
+
+
 
     // Constraints & Listeners
+
     let lastViolationTime = 0;
+
     const VIOLATION_COOLDOWN = 2000; // 2 second cooldown between violations
 
+
+
     // Detect tab/window visibility changes (tab switch)
+
     document.addEventListener("visibilitychange", function () {
+
         if (!examActive) return;
+
         const now = Date.now();
+
         if (document.hidden && (now - lastViolationTime) > VIOLATION_COOLDOWN) {
+
             lastViolationTime = now;
+
             logCheat("Tab switched or window minimized.");
+
         }
+
     });
+
+
 
     // Detect window blur (loses focus to another app)
+
     window.addEventListener("blur", function () {
+
         if (!examActive) return;
+
         const now = Date.now();
+
         if ((now - lastViolationTime) > VIOLATION_COOLDOWN) {
+
             lastViolationTime = now;
+
             logCheat("Window lost focus - switched to another application.");
+
         }
+
     });
+
+
 
     // Detect page visibility state changes (more reliable)
+
     document.addEventListener("pagehide", function () {
+
         if (examActive) {
+
             logCheat("Attempted to navigate away from exam.");
+
         }
+
     });
+
+
 
     document.addEventListener("beforeunload", function (e) {
+
         if (examActive) {
+
             logCheat("Attempted to leave or reload exam page.");
+
         }
+
     });
+
+
 
     document.addEventListener('fullscreenchange', () => {
+
         if (!examActive) return;
+
         if (!document.fullscreenElement) {
+
             logCheat("Exited fullscreen mode.");
+
             // Blur content
+
             examContent.classList.add('blurred');
+
             // Auto-restore fullscreen after 2 seconds
+
             setTimeout(() => {
+
                 attemptAutoFullscreen();
+
                 examContent.classList.remove('blurred');
+
             }, 2000);
+
         }
+
     });
+
+
 
     // Prevent Copy/Paste & Context Menu
+
     document.oncontextmenu = e => e.preventDefault();
+
     document.onpaste = e => e.preventDefault();
+
     document.oncopy = e => e.preventDefault();
+
     document.oncut = e => e.preventDefault();
 
+
+
     // Disable devtools shortcuts
+
     document.onkeydown = function (e) {
+
         if (e.keyCode == 123) { return false; } // F12
+
         if (e.ctrlKey && e.shiftKey && e.keyCode == 73) { return false; } // Ctrl+Shift+I
+
         if (e.ctrlKey && e.shiftKey && e.keyCode == 74) { return false; } // Ctrl+Shift+J
+
         if (e.ctrlKey && e.keyCode == 85) { return false; } // Ctrl+U
+
     };
+
+
 
     // --- Navigator Palette UI Script ---
+
     const paletteBtns = document.querySelectorAll('.palette-btn');
+
     const bookmarkBtns = document.querySelectorAll('.bookmark-btn');
+
     const optionRadios = document.querySelectorAll('.q-option');
 
-    // Smooth Scroll to Card
-    paletteBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const index = btn.getAttribute('data-qindex');
-            const targetCard = document.getElementById(`qcard-${index}`);
-            if (targetCard) {
-                targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        });
-    });
+    const isPerQuestion = "{{ exam.timer_type }}" === "per_question";
 
-    // Update Palette State upon Selection
-    optionRadios.forEach(radio => {
-        radio.addEventListener('change', () => {
-            const index = radio.getAttribute('data-qindex');
-            const pBtn = document.getElementById(`palette-btn-${index}`);
-            if (pBtn) {
-                pBtn.classList.remove('btn-outline-secondary');
-                // Don't overwrite orange if it's bookmarked currently
-                if (!pBtn.classList.contains('btn-warning')) {
-                    pBtn.classList.add('btn-success', 'text-white', 'border-success');
+    const totalQuestions = {{ questions | length }};
+
+    let currentQuestionIndex = 1;
+
+    let perQuestionInterval = null;
+
+    let overallInterval = null;
+
+    let serverRemainingSeconds = null;
+
+
+
+    // Reliable Auto-Save with Retries & Status Indicator
+
+    let activeAutosaves = 0;
+
+    const autosaveEl = document.getElementById('autosave-indicator');
+
+
+
+    function updateAutosaveUI() {
+
+        if (!autosaveEl) return;
+
+        if (activeAutosaves > 0) {
+
+            autosaveEl.className = 'text-warning fw-bold';
+
+            autosaveEl.innerText = '⏳ Saving...';
+
+        } else {
+
+            autosaveEl.className = 'text-success fw-bold';
+
+            autosaveEl.innerText = '✓ Synced to Server';
+
+        }
+
+    }
+
+
+
+    async function saveAnswerToServer(payload, retries = 3) {
+
+        activeAutosaves++;
+
+        updateAutosaveUI();
+
+
+
+        for (let attempt = 1; attempt <= retries; attempt++) {
+
+            try {
+
+                const res = await fetch(`/student/api/exam/{{ exam.id }}/save_question_answer`, {
+
+                    method: 'POST',
+
+                    headers: { 'Content-Type': 'application/json' },
+
+                    body: JSON.stringify(payload)
+
+                });
+
+                if (res.ok) {
+
+                    const data = await res.json();
+
+                    activeAutosaves = Math.max(0, activeAutosaves - 1);
+
+                    updateAutosaveUI();
+
+                    return data;
+
+                } else if (res.status === 400) {
+
+                    const err = await res.json();
+
+                    console.warn('Answer rejected by server:', err.detail);
+
+                    lockQuestionById(payload.question_id);
+
+                    activeAutosaves = Math.max(0, activeAutosaves - 1);
+
+                    updateAutosaveUI();
+
+                    return null;
+
                 }
+
+            } catch (netErr) {
+
+                console.warn(`Auto-save retry ${attempt}/${retries} failed:`, netErr);
+
+                if (attempt < retries) {
+
+                    await new Promise(r => setTimeout(r, 1000));
+
+                }
+
             }
+
+        }
+
+        activeAutosaves = Math.max(0, activeAutosaves - 1);
+
+        if (autosaveEl) {
+
+            autosaveEl.className = 'text-danger fw-bold';
+
+            autosaveEl.innerText = '⚠️ Offline (Will Retry)';
+
+        }
+
+    }
+
+
+
+    function lockQuestion(index) {
+
+        const card = document.getElementById(`qcard-${index}`);
+
+        if (card) {
+
+            card.querySelectorAll('input, textarea, button').forEach(el => el.disabled = true);
+
+            card.style.opacity = '0.6';
+
+        }
+
+        const pBtn = document.getElementById(`palette-btn-${index}`);
+
+        if (pBtn) {
+
+            pBtn.classList.add('disabled');
+
+            pBtn.style.pointerEvents = 'none';
+
+        }
+
+    }
+
+
+
+    function lockQuestionById(qId) {
+
+        const card = document.querySelector(`.question-card[data-qid="${qId}"]`);
+
+        if (card) {
+
+            const index = card.getAttribute('data-qindex');
+
+            lockQuestion(index);
+
+        }
+
+    }
+
+
+
+    function markPaletteAnswered(index) {
+
+        const pBtn = document.getElementById(`palette-btn-${index}`);
+
+        if (pBtn && !pBtn.classList.contains('btn-warning')) {
+
+            pBtn.classList.remove('btn-outline-secondary');
+
+            pBtn.classList.add('btn-success', 'text-white', 'border-success');
+
+        }
+
+    }
+
+
+
+    function unmarkPaletteAnswered(index) {
+
+        const pBtn = document.getElementById(`palette-btn-${index}`);
+
+        if (pBtn && !pBtn.classList.contains('btn-warning')) {
+
+            pBtn.classList.remove('btn-success', 'text-white', 'border-success');
+
+            pBtn.classList.add('btn-outline-secondary');
+
+        }
+
+    }
+
+
+
+    // Palette navigation click
+
+    paletteBtns.forEach(btn => {
+
+        btn.addEventListener('click', () => {
+
+            const index = parseInt(btn.getAttribute('data-qindex'));
+
+            if (isPerQuestion) {
+
+                if (index === currentQuestionIndex + 1) {
+
+                    advanceToNextQuestion(currentQuestionIndex);
+
+                }
+
+                return;
+
+            }
+
+            const targetCard = document.getElementById(`qcard-${index}`);
+
+            if (targetCard) {
+
+                targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            }
+
         });
+
     });
 
-    // Bookmark Toggling
-    bookmarkBtns.forEach(btn => {
+
+
+    // 1. Radio change handler (Single Choice & True/False)
+
+    optionRadios.forEach(radio => {
+
+        radio.addEventListener('change', () => {
+
+            const index = radio.getAttribute('data-qindex');
+
+            const qId = radio.getAttribute('data-qid');
+
+            const optId = radio.value;
+
+            saveAnswerToServer({ question_id: parseInt(qId), selected_option_id: parseInt(optId) });
+
+            markPaletteAnswered(index);
+
+        });
+
+    });
+
+
+
+    // 2. Checkboxes handler (Multiple-select MCQ)
+
+    document.querySelectorAll('.q-multiselect').forEach(chk => {
+
+        chk.addEventListener('change', () => {
+
+            const index = chk.getAttribute('data-qindex');
+
+            const qId = chk.getAttribute('data-qid');
+
+            const checkedBoxes = Array.from(document.querySelectorAll(`.q-multiselect[data-qid="${qId}"]:checked`));
+
+            const checkedIds = checkedBoxes.map(c => parseInt(c.value));
+
+            saveAnswerToServer({ question_id: parseInt(qId), selected_option_ids: checkedIds });
+
+            if (checkedIds.length > 0) {
+
+                markPaletteAnswered(index);
+
+            } else {
+
+                unmarkPaletteAnswered(index);
+
+            }
+
+        });
+
+    });
+
+
+
+    // 3. Text inputs, textareas, and code inputs with debouncing
+
+    const debounceTimers = {};
+
+    document.querySelectorAll('.q-text-input, .q-textarea-input, .q-code-input').forEach(input => {
+
+        input.addEventListener('input', () => {
+
+            const index = input.getAttribute('data-qindex');
+
+            const qId = input.getAttribute('data-qid');
+
+            const val = input.value;
+
+            clearTimeout(debounceTimers[qId]);
+
+            debounceTimers[qId] = setTimeout(() => {
+
+                saveAnswerToServer({ question_id: parseInt(qId), answer_text: val });
+
+            }, 500);
+
+
+
+            if (val.trim().length > 0) {
+
+                markPaletteAnswered(index);
+
+            } else {
+
+                unmarkPaletteAnswered(index);
+
+            }
+
+        });
+
+    });
+
+
+
+    // 4. Clear Response Buttons
+
+    document.querySelectorAll('.clear-response-btn').forEach(btn => {
+
         btn.addEventListener('click', () => {
+
             const index = btn.getAttribute('data-qindex');
+
+            const qId = btn.getAttribute('data-qid');
+
+            const card = document.getElementById(`qcard-${index}`);
+
+            if (!card) return;
+
+            card.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
+
+            card.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+
+            card.querySelectorAll('input[type="text"], textarea').forEach(t => t.value = "");
+
+            saveAnswerToServer({ question_id: parseInt(qId), selected_option_id: null, answer_text: "" });
+
+            unmarkPaletteAnswered(index);
+
+        });
+
+    });
+
+
+
+    // 5. Save & Next Buttons
+
+    document.querySelectorAll('.save-next-btn').forEach(btn => {
+
+        btn.addEventListener('click', () => {
+
+            const index = parseInt(btn.getAttribute('data-qindex'));
+
+            if (isPerQuestion) {
+
+                advanceToNextQuestion(index);
+
+            } else {
+
+                const nextCard = document.getElementById(`qcard-${index + 1}`);
+
+                if (nextCard) {
+
+                    nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                }
+
+            }
+
+        });
+
+    });
+
+
+
+    // 6. Previous Buttons
+
+    document.querySelectorAll('.prev-btn').forEach(btn => {
+
+        btn.addEventListener('click', () => {
+
+            const index = parseInt(btn.getAttribute('data-qindex'));
+
+            const prevCard = document.getElementById(`qcard-${index - 1}`);
+
+            if (prevCard) {
+
+                prevCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            }
+
+        });
+
+    });
+
+
+
+    // 7. Bookmark / Review Toggling
+
+    bookmarkBtns.forEach(btn => {
+
+        btn.addEventListener('click', () => {
+
+            const index = btn.getAttribute('data-qindex');
+
+            const qId = btn.getAttribute('data-qid');
+
             const pBtn = document.getElementById(`palette-btn-${index}`);
+
             const isBookmarked = btn.classList.contains('active');
 
+
+
             if (!isBookmarked) {
-                // Add Bookmark Indicator
+
                 btn.classList.add('active', 'btn-warning', 'text-body-emphasis');
+
                 btn.classList.remove('btn-outline-warning');
-                btn.innerHTML = '🎯 Bookmarked';
 
-                pBtn.classList.remove('btn-outline-secondary', 'btn-success', 'border-success');
-                pBtn.classList.add('btn-warning', 'text-body-emphasis', 'border-warning');
-            } else {
-                // Remove Bookmark Indicator
-                btn.classList.remove('active', 'btn-warning', 'text-body-emphasis');
-                btn.classList.add('btn-outline-warning');
-                btn.innerHTML = '📌 Bookmark';
+                btn.innerHTML = '🎯 In Review';
 
-                pBtn.classList.remove('btn-warning', 'text-body-emphasis', 'border-warning');
 
-                // Re-evaluate Attempted status
-                const isAnswered = document.querySelector(`.q-option[data-qindex="${index}"]:checked`);
-                if (isAnswered) {
-                    pBtn.classList.add('btn-success', 'text-white', 'border-success');
-                } else {
-                    pBtn.classList.add('btn-outline-secondary');
+
+                if (pBtn) {
+
+                    pBtn.classList.remove('btn-outline-secondary', 'btn-success', 'border-success');
+
+                    pBtn.classList.add('btn-warning', 'text-body-emphasis', 'border-warning');
+
                 }
+
+                if (qId) saveAnswerToServer({ question_id: parseInt(qId), is_bookmarked: true });
+
+            } else {
+
+                btn.classList.remove('active', 'btn-warning', 'text-body-emphasis');
+
+                btn.classList.add('btn-outline-warning');
+
+                btn.innerHTML = '🏷️ Mark for Review';
+
+
+
+                if (pBtn) {
+
+                    pBtn.classList.remove('btn-warning', 'text-body-emphasis', 'border-warning');
+
+                    // Check if answered
+
+                    const card = document.getElementById(`qcard-${index}`);
+
+                    const hasRadio = card ? card.querySelector('input[type="radio"]:checked') : null;
+
+                    const hasCheck = card ? card.querySelector('input[type="checkbox"]:checked') : null;
+
+                    const hasText = card ? card.querySelector('input[type="text"], textarea') : null;
+
+                    const isAnswered = hasRadio || hasCheck || (hasText && hasText.value.trim().length > 0);
+
+
+
+                    if (isAnswered) {
+
+                        pBtn.classList.add('btn-success', 'text-white', 'border-success');
+
+                    } else {
+
+                        pBtn.classList.add('btn-outline-secondary');
+
+                    }
+
+                }
+
+                if (qId) saveAnswerToServer({ question_id: parseInt(qId), is_bookmarked: false });
+
             }
+
         });
+
     });
+
+
+
+    // 8. Submit Confirmation Modal
+
+    let isSubmittingFinal = false;
+
+
+
+    function openSubmitModal() {
+
+        let answered = 0;
+
+        let marked = 0;
+
+
+
+        for (let i = 1; i <= totalQuestions; i++) {
+
+            const pBtn = document.getElementById(`palette-btn-${i}`);
+
+            if (pBtn) {
+
+                if (pBtn.classList.contains('btn-warning')) {
+
+                    marked++;
+
+                }
+
+                if (pBtn.classList.contains('btn-success')) {
+
+                    answered++;
+
+                }
+
+            }
+
+        }
+
+        const unanswered = Math.max(0, totalQuestions - answered);
+
+
+
+        const elAns = document.getElementById('summary-answered');
+
+        const elUnans = document.getElementById('summary-unanswered');
+
+        const elMarked = document.getElementById('summary-marked');
+
+
+
+        if (elAns) elAns.innerText = answered;
+
+        if (elUnans) elUnans.innerText = unanswered;
+
+        if (elMarked) elMarked.innerText = marked;
+
+
+
+        const modalEl = document.getElementById('submitConfirmModal');
+
+        if (modalEl && window.bootstrap) {
+
+            const modal = new bootstrap.Modal(modalEl);
+
+            modal.show();
+
+        } else {
+
+            if (confirm(`Submit Assessment?\n\nAnswered: ${answered}\nUnanswered: ${unanswered}\nMarked for Review: ${marked}`)) {
+
+                confirmFinalSubmit();
+
+            }
+
+        }
+
+    }
+
+
+
+    function confirmFinalSubmit() {
+
+        isSubmittingFinal = true;
+
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+
+        forceSubmitExam();
+
+    }
+
+
+
+    function handleBeforeUnload(e) {
+
+        if (!isSubmittingFinal && examActive) {
+
+            e.preventDefault();
+
+            e.returnValue = 'Your assessment attempt is active. Unsaved answers may be lost.';
+
+            return e.returnValue;
+
+        }
+
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+
+
     // --- End Navigator Palette ---
 
-    // Timer Logic
-    // ✅ Unix timestamp in ms — timezone-safe (no isoformat timezone ambiguity)
-    const endTime = new Date({{ (exam.end_time.timestamp() * 1000) | int }});
-    function startTimer() {
-        function updateTimer() {
-            const now = new Date();
-            const diff = endTime - now;
 
-            if (diff <= 0) {
-                document.getElementById('timer_display').innerText = "00:00";
-                document.getElementById('timer_display').style.color = "red";
-                forceSubmitExam(); // ✅ Uses guard — won't double-submit if already submitting
-                return;
+
+    // Timer Logic
+
+    const endTime = new Date({{ (exam.end_time.timestamp() * 1000) | int }});
+
+
+
+    // Server-Side Timer Sync on Page Load / Refresh
+
+    async function syncTimerStateWithServer() {
+
+        try {
+
+            const res = await fetch(`/student/api/exam/{{ exam.id }}/timer_state`);
+
+            if (res.ok) {
+
+                const state = await res.json();
+
+                if (state.is_expired) {
+
+                    alert('Exam time limit has expired. Submitting...');
+
+                    forceSubmitExam();
+
+                    return;
+
+                }
+
+
+
+                // 1. Restore simple saved answers
+
+                if (state.saved_answers) {
+
+                    for (const [qId, optId] of Object.entries(state.saved_answers)) {
+
+                        const radio = document.querySelector(`.q-option[data-qid="${qId}"][value="${optId}"]`);
+
+                        if (radio) {
+
+                            radio.checked = true;
+
+                            const index = radio.getAttribute('data-qindex');
+
+                            markPaletteAnswered(index);
+
+                        }
+
+                    }
+
+                }
+
+
+
+                // 2. Restore rich saved answers (multi-select, text, code, bookmarks)
+
+                if (state.saved_answers_detail) {
+
+                    for (const [qId, detail] of Object.entries(state.saved_answers_detail)) {
+
+                        const card = document.querySelector(`.question-card[data-qid="${qId}"]`);
+
+                        if (!card) continue;
+
+                        const index = card.getAttribute('data-qindex');
+
+
+
+                        if (detail.selected_option_ids && detail.selected_option_ids.length > 0) {
+
+                            for (const oid of detail.selected_option_ids) {
+
+                                const chk = card.querySelector(`.q-multiselect[value="${oid}"]`);
+
+                                if (chk) chk.checked = true;
+
+                            }
+
+                            markPaletteAnswered(index);
+
+                        }
+
+
+
+                        if (detail.answer_text) {
+
+                            const textInput = card.querySelector('.q-text-input, .q-textarea-input, .q-code-input');
+
+                            if (textInput && !detail.selected_option_ids) {
+
+                                textInput.value = detail.answer_text;
+
+                                markPaletteAnswered(index);
+
+                            }
+
+                        }
+
+
+
+                        if (detail.is_bookmarked) {
+
+                            const bBtn = card.querySelector('.bookmark-btn');
+
+                            if (bBtn) {
+
+                                bBtn.classList.add('active', 'btn-warning', 'text-body-emphasis');
+
+                                bBtn.classList.remove('btn-outline-warning');
+
+                                bBtn.innerHTML = '🎯 In Review';
+
+                            }
+
+                            const pBtn = document.getElementById(`palette-btn-${index}`);
+
+                            if (pBtn) {
+
+                                pBtn.classList.remove('btn-outline-secondary', 'btn-success', 'border-success');
+
+                                pBtn.classList.add('btn-warning', 'text-body-emphasis', 'border-warning');
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+
+
+                // Lock previously expired questions
+
+                if (state.locked_question_ids) {
+
+                    for (const qId of state.locked_question_ids) {
+
+                        lockQuestionById(qId);
+
+                    }
+
+                }
+
+
+
+                if (isPerQuestion) {
+
+                    currentQuestionIndex = state.current_question_index || 1;
+
+                    serverRemainingSeconds = state.remaining_seconds;
+
+                    startQuestionTimer(currentQuestionIndex, serverRemainingSeconds);
+
+                } else {
+
+                    serverRemainingSeconds = state.remaining_seconds;
+
+                    startOverallTimer(serverRemainingSeconds);
+
+                }
+
+            } else {
+
+                startTimerFallback();
+
             }
 
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        } catch (e) {
+
+            console.error('Failed to sync timer state with server:', e);
+
+            startTimerFallback();
+
+        }
+
+    }
+
+
+
+    async function advanceToNextQuestion(qIndex) {
+
+        const targetCard = document.getElementById(`qcard-${qIndex}`);
+
+        const qId = targetCard ? targetCard.getAttribute('data-qid') : null;
+
+        if (qId) {
+
+            try {
+
+                const res = await fetch(`/student/api/exam/{{ exam.id }}/next_question`, {
+
+                    method: 'POST',
+
+                    headers: { 'Content-Type': 'application/json' },
+
+                    body: JSON.stringify({ current_question_id: parseInt(qId) })
+
+                });
+
+                if (res.ok) {
+
+                    const data = await res.json();
+
+                    if (data.is_last || data.status === 'completed') {
+
+                        forceSubmitExam();
+
+                        return;
+
+                    }
+
+                    lockQuestion(qIndex);
+
+                    startQuestionTimer(qIndex + 1, data.remaining_seconds);
+
+                    return;
+
+                }
+
+            } catch (err) {
+
+                console.error('Next question error:', err);
+
+            }
+
+        }
+
+        lockQuestion(qIndex);
+
+        if (qIndex < totalQuestions) {
+
+            startQuestionTimer(qIndex + 1);
+
+        } else {
+
+            forceSubmitExam();
+
+        }
+
+    }
+
+
+
+    function startQuestionTimer(qIndex, initialRemaining) {
+
+        currentQuestionIndex = qIndex;
+
+        if (perQuestionInterval) clearInterval(perQuestionInterval);
+
+
+
+        const targetCard = document.getElementById(`qcard-${qIndex}`);
+
+        if (!targetCard) {
+
+            forceSubmitExam();
+
+            return;
+
+        }
+
+
+
+        targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+
+
+        const timeLimit = parseInt(targetCard.getAttribute('data-timelimit')) || 60;
+
+        let remainingSeconds = (initialRemaining !== undefined && initialRemaining !== null) ? initialRemaining : timeLimit;
+
+
+
+        function renderPerQ() {
+
+            if (new Date() >= endTime) {
+
+                document.getElementById('timer_display').innerText = "00:00";
+
+                forceSubmitExam();
+
+                return;
+
+            }
+
+
+
+            if (remainingSeconds <= 0) {
+
+                clearInterval(perQuestionInterval);
+
+                lockQuestion(qIndex);
+
+                advanceToNextQuestion(qIndex);
+
+                return;
+
+            }
+
+
+
+            const m = Math.floor(remainingSeconds / 60);
+
+            const s = remainingSeconds % 60;
 
             document.getElementById('timer_display').innerText =
+
+                `Q${qIndex}: ` + String(m).padStart(2, '0') + ":" + String(s).padStart(2, '0');
+
+
+
+            if (remainingSeconds <= 10) {
+
+                document.getElementById('timer_display').style.background = "#fca5a5";
+
+                document.getElementById('timer_display').style.color = "#7f1d1d";
+
+            } else {
+
+                document.getElementById('timer_display').style.background = "";
+
+                document.getElementById('timer_display').style.color = "";
+
+            }
+
+
+
+            remainingSeconds--;
+
+        }
+
+
+
+        perQuestionInterval = setInterval(renderPerQ, 1000);
+
+        renderPerQ();
+
+    }
+
+
+
+    function startOverallTimer(initialRemaining) {
+
+        if (overallInterval) clearInterval(overallInterval);
+
+        let rem = (initialRemaining !== undefined && initialRemaining !== null) ? initialRemaining : Math.floor((endTime - new Date()) / 1000);
+
+
+
+        function updateTimer() {
+
+            if (rem <= 0) {
+
+                clearInterval(overallInterval);
+
+                document.getElementById('timer_display').innerText = "00:00";
+
+                document.getElementById('timer_display').style.color = "red";
+
+                forceSubmitExam();
+
+                return;
+
+            }
+
+
+
+            const minutes = Math.floor(rem / 60);
+
+            const seconds = rem % 60;
+
+
+
+            document.getElementById('timer_display').innerText =
+
                 String(minutes).padStart(2, '0') + ":" + String(seconds).padStart(2, '0');
 
+
+
             if (minutes < 5) {
+
                 document.getElementById('timer_display').style.background = "#fca5a5";
+
                 document.getElementById('timer_display').style.color = "#7f1d1d";
+
             }
+
+
+
+            rem--;
+
         }
-        setInterval(updateTimer, 1000);
+
+        overallInterval = setInterval(updateTimer, 1000);
+
         updateTimer();
+
     }
+
+
+
+    function startTimerFallback() {
+
+        if (!isPerQuestion) {
+
+            startOverallTimer();
+
+        } else {
+
+            startQuestionTimer(1);
+
+        }
+
+    }
+
+
+
+    function startTimer() {
+
+        syncTimerStateWithServer();
+
+    }
+
 </script>
 
+
+
 <!-- Regular script for global functions -->
+
 <script>
+
     // System Check Variables
+
     let systemCheckPassed = {
+
         camera: false,
+
         microphone: false
+
     };
 
+
+
     // System Check Function
+
     async function runSystemCheck() {
+
         systemCheckPassed = { camera: false, microphone: false };
+
         document.getElementById('error-message').style.display = 'none';
+
         document.getElementById('proceed-btn').disabled = true;
+
         document.getElementById('retry-check-btn').disabled = true;
 
+
+
         // Check Camera
+
         await checkCamera();
+
         // Check Microphone
+
         await checkMicrophone();
+
+
 
         document.getElementById('retry-check-btn').disabled = false;
 
+
+
         // Enable proceed button only if both pass
+
         if (systemCheckPassed.camera && systemCheckPassed.microphone) {
+
             document.getElementById('proceed-btn').disabled = false;
+
         } else {
+
             showErrorMessage();
+
         }
+
     }
+
+
 
     async function checkCamera() {
+
         const cameraCheck = document.getElementById('camera-check');
+
         const cameraIcon = document.getElementById('camera-icon');
+
         const cameraDetails = document.getElementById('camera-details');
 
+
+
         try {
+
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
             // Stop the stream
+
             stream.getTracks().forEach(track => track.stop());
+
+
 
             cameraIcon.innerText = '✅';
+
             cameraDetails.innerText = 'Camera detected and working';
+
             cameraCheck.classList.remove('checking', 'failed');
+
             cameraCheck.classList.add('success');
+
             systemCheckPassed.camera = true;
+
         } catch (err) {
+
             cameraIcon.innerText = '❌';
+
             cameraDetails.innerText = `Camera not available: ${err.name}`;
+
             cameraCheck.classList.remove('checking', 'success');
+
             cameraCheck.classList.add('failed');
+
             systemCheckPassed.camera = false;
+
         }
+
     }
+
+
 
     async function checkMicrophone() {
+
         const micCheck = document.getElementById('mic-check');
+
         const micIcon = document.getElementById('mic-icon');
+
         const micDetails = document.getElementById('mic-details');
 
+
+
         try {
+
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
             // Stop the stream
+
             stream.getTracks().forEach(track => track.stop());
 
+
+
             micIcon.innerText = '✅';
+
             micDetails.innerText = 'Microphone detected and working';
+
             micCheck.classList.remove('checking', 'failed');
+
             micCheck.classList.add('success');
+
             systemCheckPassed.microphone = true;
+
         } catch (err) {
+
             micIcon.innerText = '❌';
+
             micDetails.innerText = `Microphone not available: ${err.name}`;
+
             micCheck.classList.remove('checking', 'success');
+
             micCheck.classList.add('failed');
+
             systemCheckPassed.microphone = false;
+
         }
+
     }
+
+
 
     function showErrorMessage() {
+
         const errorMsg = document.getElementById('error-message');
+
         let message = '<strong>Required Devices Missing:</strong><br>';
-        
+
+
+
         if (!systemCheckPassed.camera) {
+
             message += '• Camera is not available or not permitted<br>';
+
         }
+
         if (!systemCheckPassed.microphone) {
+
             message += '• Microphone is not available or not permitted<br>';
+
         }
+
         message += '<br>Please check your device and browser permissions, then retry.';
-        
+
+
+
         errorMsg.innerHTML = message;
+
         errorMsg.style.display = 'block';
+
     }
+
+
 
     function proceedToExam() {
+
         if (systemCheckPassed.camera && systemCheckPassed.microphone) {
+
             document.getElementById('system-check-modal').style.display = 'none';
+
             document.getElementById('overlay').style.display = 'flex';
+
         }
+
     }
 
+
+
     // Run system check when page loads
+
     window.addEventListener('load', function() {
+
         runSystemCheck();
+
     });
+
 </script>
+
 {% endblock %}

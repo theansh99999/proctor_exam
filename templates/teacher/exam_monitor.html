@@ -128,12 +128,12 @@
 
     ws.onmessage = function(event) {
         const data = JSON.parse(event.data);
-        
+
         if (data.type === 'live_submission' && data.exam_id === examId) {
             // Update Totals
             const totalSubsEl = document.getElementById(`live_total_subs`);
             if (totalSubsEl) totalSubsEl.innerText = parseInt(totalSubsEl.innerText) + 1;
-            
+
             if (data.passed) {
                 const passEl = document.getElementById(`live_pass`);
                 if (passEl) passEl.innerText = parseInt(passEl.innerText) + 1;
@@ -141,15 +141,15 @@
                 const failEl = document.getElementById(`live_fail`);
                 if (failEl) failEl.innerText = parseInt(failEl.innerText) + 1;
             }
-            
+
             // Update Table
             const noSubsTr = document.getElementById(`no_subs`);
             if (noSubsTr) noSubsTr.remove();
-            
+
             const tbody = document.querySelector(`#live_table tbody`);
             if (tbody) {
                 const tr = document.createElement('tr');
-                tr.style.backgroundColor = 'rgba(16, 185, 129, 0.1)'; 
+                tr.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
                 tr.style.transition = 'background-color 2s ease';
                 tr.innerHTML = `
                     <td class="fw-bold py-3 fs-5">${data.student_name} <span class="badge bg-primary text-white ms-2 shadow-sm rounded-pill" style="font-size: 0.6em; vertical-align: middle;">NEW UPDATE</span></td>
@@ -160,8 +160,8 @@
                         </span>
                     </td>
                 `;
-                tbody.prepend(tr); 
-                
+                tbody.prepend(tr);
+
                 // Fade out background slightly after insert
                 setTimeout(() => {
                     tr.style.backgroundColor = 'transparent';
@@ -174,19 +174,24 @@
             const toastEl = document.getElementById('liveToast');
             const toast = new bootstrap.Toast(toastEl, { delay: 6000 });
             toast.show();
-        } else if (data.student_name && data.description) {
-            // Handle violation/flag message
-            addViolationToList(data.student_name, data.description, data.exam_title);
+        } else if (data.type === 'proctoring_event' || (data.student_name && data.description)) {
+            // Handle structured proctoring violation / event
+            addViolationToList(data);
         }
     };
 
-    function addViolationToList(studentName, description, examTitle) {
+    function addViolationToList(data) {
+        const studentName = data.student_name || "Candidate";
+        const description = data.description || "Violation detected";
+        const severity = data.severity || "medium";
+        const integrityScore = data.integrity_score !== undefined ? data.integrity_score : null;
+        const riskLevel = data.risk_level || "low";
         const violationsList = document.getElementById('violations-list');
-        
+
         // Remove placeholder if exists
         const placeholder = violationsList.querySelector('.text-center');
         if (placeholder) placeholder.remove();
-        
+
         // Create violation card
         const violationDiv = document.createElement('div');
         violationDiv.className = 'card bg-danger bg-opacity-10 border-danger border-opacity-50 mb-3 shadow-sm';
@@ -194,33 +199,32 @@
             <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
-                        <h6 class="fw-bold text-danger mb-1">🚩 ${studentName}</h6>
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <h6 class="fw-bold text-danger mb-0">🚩 ${studentName}</h6>
+                            <span class="badge ${severity === 'critical' ? 'bg-danger' : (severity === 'high' ? 'bg-warning text-dark' : 'bg-secondary')} text-uppercase" style="font-size: 0.65em;">
+                                ${severity}
+                            </span>
+                            ${integrityScore !== null ? `<span class="badge bg-light text-dark border" style="font-size: 0.65em;">Integrity: ${integrityScore}%</span>` : ''}
+                        </div>
                         <p class="text-muted small mb-1">${description}</p>
                         <small class="text-muted opacity-75">${new Date().toLocaleTimeString()}</small>
                     </div>
-                    <span class="badge bg-danger text-white ms-2">NEW</span>
+                    <span class="badge bg-danger text-white ms-2">LIVE</span>
                 </div>
             </div>
         `;
-        
+
         violationsList.prepend(violationDiv);
-        
+
         // Update violation count
         const violationCount = violationsList.querySelectorAll('.card').length;
         document.getElementById('violation-count').innerText = `${violationCount} Flag${violationCount !== 1 ? 's' : ''}`;
-        
-        // Auto-remove "NEW" badge after 3 seconds
-        setTimeout(() => {
-            const newBadge = violationDiv.querySelector('.badge');
-            if (newBadge) newBadge.style.display = 'none';
-        }, 3000);
-        
+
         // Toast notification for violation
-        const violationToastMsg = `⚠️ ${studentName} - ${description}`;
+        const violationToastMsg = `⚠️ ${studentName}: ${description} (${severity.toUpperCase()})`;
         document.getElementById('toastMessage').innerText = violationToastMsg;
         const toastEl = document.getElementById('liveToast');
         const toast = new bootstrap.Toast(toastEl, { delay: 8000 });
-        toast.classList.add('bg-danger');
         toast.show();
     }
 
@@ -233,7 +237,7 @@
         const table = document.getElementById(`live_table`);
         const tbody = table.querySelector('tbody');
         const rows = Array.from(tbody.querySelectorAll('tr'));
-        
+
         if(rows.length === 0 || (rows.length === 1 && rows[0].id === 'no_subs')) return;
 
         const currentOrder = table.getAttribute('data-sort') || 'desc';

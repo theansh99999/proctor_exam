@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+
+
+
+{% block content %}
+
+<div class="card glass-card border-0 shadow-sm mb-4 position-relative overflow-hidden" style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(14, 165, 233, 0.1) 100%);">
+
+    <div class="card-body p-4 p-md-5">
+
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+
+            <div>
+
+                <span class="badge bg-primary text-white rounded-pill px-3 py-1 mb-2 fw-medium">Platform Administration</span>
+
+                <h1 class="fw-bold mb-1 text-body-emphasis display-6">Super Admin Dashboard</h1>
+
+                <p class="text-muted mb-0">Cross-organization platform governance, system configuration, and audit intelligence.</p>
+
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+
+                <a href="/admin/organizations" class="btn btn-outline-primary fw-bold rounded-pill">🏢 Organizations</a>
+
+                <a href="/admin/users" class="btn btn-outline-success fw-bold rounded-pill">👥 Users</a>
+
+                <a href="/admin/settings/platform" class="btn btn-outline-warning fw-bold rounded-pill">⚙️ Platform Config</a>
+
+                <a href="/admin/audit-logs" class="btn btn-outline-info fw-bold rounded-pill">📜 Audit Logs</a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- Primary Platform Stat Cards -->
+
+<div class="row g-3 mb-4">
+
+    <div class="col-6 col-md-3">
+
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-left: 4px solid #4f46e5 !important;">
+
+            <h6 class="text-muted text-uppercase fw-bold mb-1 small">Organizations</h6>
+
+            <h2 class="fw-bold mb-1 text-primary">{{ stats.total_organizations }}</h2>
+
+            <div class="small text-muted">
+
+                <span class="text-success fw-bold">{{ stats.active_organizations }} active</span> ·
+
+                <span class="text-danger fw-bold">{{ stats.suspended_organizations }} suspended</span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-6 col-md-3">
+
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-left: 4px solid #10b981 !important;">
+
+            <h6 class="text-muted text-uppercase fw-bold mb-1 small">Total Users</h6>
+
+            <h2 class="fw-bold mb-1 text-success">{{ stats.total_users }}</h2>
+
+            <div class="small text-muted">
+
+                {{ stats.total_org_admins }} Admins · {{ stats.total_examiners }} Examiners · {{ stats.total_candidates }} Candidates
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-6 col-md-3">
+
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-left: 4px solid #f59e0b !important;">
+
+            <h6 class="text-muted text-uppercase fw-bold mb-1 small">Total Assessments</h6>
+
+            <h2 class="fw-bold mb-1 text-warning">{{ stats.total_assessments }}</h2>
+
+            <div class="small text-muted">
+
+                {{ stats.active_assessments }} active · {{ stats.completed_assessments }} completed
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-6 col-md-3">
+
+        <div class="card glass-card h-100 p-3 border-0 shadow-sm" style="border-left: 4px solid #0ea5e9 !important;">
+
+            <h6 class="text-muted text-uppercase fw-bold mb-1 small">Total Attempts</h6>
+
+            <h2 class="fw-bold mb-1 text-info">{{ stats.total_attempts }}</h2>
+
+            <div class="small text-muted">
+
+                Across all registered organizations
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- System Health Overview -->
+
+<div class="row g-3 mb-4">
+
+    <div class="col-md-6">
+
+        <div class="card glass-card border-0 shadow-sm h-100 p-3">
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+
+                <h6 class="fw-bold mb-0">🔗 External Integrations Health</h6>
+
+                <span class="badge {% if stats.integration_health.status == 'healthy' %}bg-success{% else %}bg-warning{% endif %} text-white rounded-pill px-3 py-1">
+
+                    {{ stats.integration_health.status|capitalize }}
+
+                </span>
+
+            </div>
+
+            <div class="row text-center">
+
+                <div class="col-4">
+
+                    <div class="fs-4 fw-bold">{{ stats.integration_health.total_configured }}</div>
+
+                    <small class="text-muted">Configured</small>
+
+                </div>
+
+                <div class="col-4">
+
+                    <div class="fs-4 fw-bold text-success">{{ stats.integration_health.active_count }}</div>
+
+                    <small class="text-muted">Active</small>
+
+                </div>
+
+                <div class="col-4">
+
+                    <div class="fs-4 fw-bold {% if stats.integration_health.error_count > 0 %}text-danger{% else %}text-muted{% endif %}">{{ stats.integration_health.error_count }}</div>
+
+                    <small class="text-muted">Errors</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-md-6">
+
+        <div class="card glass-card border-0 shadow-sm h-100 p-3">
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+
+                <h6 class="fw-bold mb-0">📨 Notification Delivery Health</h6>
+
+                <span class="badge {% if stats.notification_health.status == 'healthy' %}bg-success{% else %}bg-warning{% endif %} text-white rounded-pill px-3 py-1">
+
+                    {{ stats.notification_health.status|capitalize }}
+
+                </span>
+
+            </div>
+
+            <div class="row text-center">
+
+                <div class="col-4">
+
+                    <div class="fs-4 fw-bold">{{ stats.notification_health.total_sent }}</div>
+
+                    <small class="text-muted">Total Sent</small>
+
+                </div>
+
+                <div class="col-4">
+
+                    <div class="fs-4 fw-bold text-success">{{ stats.notification_health.delivered_count }}</div>
+
+                    <small class="text-muted">Delivered ({{ stats.notification_health.delivery_rate_pct }}%)</small>
+
+                </div>
+
+                <div class="col-4">
+
+                    <div class="fs-4 fw-bold {% if stats.notification_health.failed_count > 0 %}text-danger{% else %}text-muted{% endif %}">{{ stats.notification_health.failed_count }}</div>
+
+                    <small class="text-muted">Failed</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- Two-Column Recent Activity Tables -->
+
+<div class="row g-4">
+
+    <div class="col-lg-6">
+
+        <div class="card glass-card border-0 shadow-sm h-100">
+
+            <div class="card-header bg-transparent border-0 pt-3 px-3 d-flex justify-content-between align-items-center">
+
+                <h6 class="fw-bold mb-0">🏢 Recent Organization Registrations</h6>
+
+                <a href="/admin/organizations" class="btn btn-sm btn-link text-decoration-none">View All</a>
+
+            </div>
+
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+
+                    <table class="table align-middle table-hover mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th>Name</th>
+
+                                <th>Slug</th>
+
+                                <th>Status</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            {% for org in stats.recent_organizations %}
+
+                            <tr>
+
+                                <td class="fw-bold">{{ org.name }}</td>
+
+                                <td><code>{{ org.slug }}</code></td>
+
+                                <td>
+
+                                    {% if org.is_suspended %}
+
+                                    <span class="badge bg-danger rounded-pill">Suspended</span>
+
+                                    {% elif not org.is_active %}
+
+                                    <span class="badge bg-secondary rounded-pill">Inactive</span>
+
+                                    {% else %}
+
+                                    <span class="badge bg-success rounded-pill">Active</span>
+
+                                    {% endif %}
+
+                                </td>
+
+                            </tr>
+
+                            {% else %}
+
+                            <tr>
+
+                                <td colspan="3" class="text-center text-muted py-3">No organizations found.</td>
+
+                            </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="col-lg-6">
+
+        <div class="card glass-card border-0 shadow-sm h-100">
+
+            <div class="card-header bg-transparent border-0 pt-3 px-3 d-flex justify-content-between align-items-center">
+
+                <h6 class="fw-bold mb-0">📜 Recent Administrative Actions</h6>
+
+                <a href="/admin/audit-logs" class="btn btn-sm btn-link text-decoration-none">View Audit Logs</a>
+
+            </div>
+
+            <div class="card-body p-0">
+
+                <div class="table-responsive">
+
+                    <table class="table align-middle table-hover mb-0">
+
+                        <thead class="table-light">
+
+                            <tr>
+
+                                <th>Action</th>
+
+                                <th>Actor</th>
+
+                                <th>Entity</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            {% for act in stats.recent_audit_actions %}
+
+                            <tr>
+
+                                <td><span class="badge bg-dark-subtle text-body rounded-pill font-monospace">{{ act.action }}</span></td>
+
+                                <td class="small">{{ act.actor_name }}</td>
+
+                                <td class="small text-muted">{{ act.entity_type }}{% if act.entity_id %}:{{ act.entity_id }}{% endif %}</td>
+
+                            </tr>
+
+                            {% else %}
+
+                            <tr>
+
+                                <td colspan="3" class="text-center text-muted py-3">No recent actions logged.</td>
+
+                            </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

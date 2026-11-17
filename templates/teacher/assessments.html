@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+
+
+{% block content %}
+
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+
+        <div>
+
+            <h2 class="fw-bold mb-1">Assessment Management</h2>
+
+            <p class="text-muted mb-0">Create, configure, schedule, assign, and manage multi-purpose assessments.</p>
+
+        </div>
+
+        <div class="d-flex gap-2">
+
+            <a href="/teacher/dashboard" class="btn btn-outline-secondary">
+
+                ← Back to Dashboard
+
+            </a>
+
+            <a href="/teacher/question-bank" class="btn btn-outline-info">
+
+                📚 Question Bank
+
+            </a>
+
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#blueprintsModal">
+
+                📑 Blueprints
+
+            </button>
+
+            <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#templatesModal">
+
+                📋 Templates
+
+            </button>
+
+            <a href="/teacher/exam-editor" class="btn btn-primary">
+
+                + Create Assessment
+
+            </a>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Stat Overview Cards -->
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-2 col-sm-4 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center">
+
+                <span class="text-muted small text-uppercase fw-bold">Total</span>
+
+                <h3 class="fw-bold text-primary mb-0">{{ overview.total_assessments }}</h3>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-2 col-sm-4 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center">
+
+                <span class="text-muted small text-uppercase fw-bold">Draft</span>
+
+                <h3 class="fw-bold text-secondary mb-0">{{ overview.draft_count }}</h3>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-2 col-sm-4 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center">
+
+                <span class="text-muted small text-uppercase fw-bold">Scheduled</span>
+
+                <h3 class="fw-bold text-info mb-0">{{ overview.scheduled_count }}</h3>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-2 col-sm-4 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center">
+
+                <span class="text-muted small text-uppercase fw-bold">Active</span>
+
+                <h3 class="fw-bold text-success mb-0">{{ overview.active_count }}</h3>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-2 col-sm-4 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center">
+
+                <span class="text-muted small text-uppercase fw-bold">Completed</span>
+
+                <h3 class="fw-bold text-dark mb-0">{{ overview.completed_count }}</h3>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-2 col-sm-4 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center">
+
+                <span class="text-muted small text-uppercase fw-bold">Archived</span>
+
+                <h3 class="fw-bold text-muted mb-0">{{ overview.archived_count }}</h3>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Filter & Search Bar -->
+
+    <div class="card glass-card border-0 shadow-sm p-3 mb-4">
+
+        <form method="GET" action="/teacher/assessments" class="row g-2 align-items-center">
+
+            <div class="col-md-4">
+
+                <input type="text" name="search" class="form-control" placeholder="Search by title or description..." value="{{ search }}">
+
+            </div>
+
+            <div class="col-md-2">
+
+                <select name="type" class="form-select">
+
+                    <option value="" {% if not assessment_type %}selected{% endif %}>All Types</option>
+
+                    <option value="academic" {% if assessment_type == 'academic' %}selected{% endif %}>Academic</option>
+
+                    <option value="placement" {% if assessment_type == 'placement' %}selected{% endif %}>Placement</option>
+
+                    <option value="technical" {% if assessment_type == 'technical' %}selected{% endif %}>Technical</option>
+
+                    <option value="custom" {% if assessment_type == 'custom' %}selected{% endif %}>Custom</option>
+
+                </select>
+
+            </div>
+
+            <div class="col-md-2">
+
+                <select name="status" class="form-select">
+
+                    <option value="" {% if not status %}selected{% endif %}>All Statuses</option>
+
+                    <option value="draft" {% if status == 'draft' %}selected{% endif %}>Draft</option>
+
+                    <option value="published" {% if status == 'published' %}selected{% endif %}>Published</option>
+
+                    <option value="scheduled" {% if status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+
+                    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+
+                    <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
+
+                    <option value="archived" {% if status == 'archived' %}selected{% endif %}>Archived</option>
+
+                </select>
+
+            </div>
+
+            <div class="col-md-2">
+
+                <select name="sort_by" class="form-select">
+
+                    <option value="start_time" {% if sort_by == 'start_time' %}selected{% endif %}>Start Time</option>
+
+                    <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title</option>
+
+                    <option value="id" {% if sort_by == 'id' %}selected{% endif %}>Date Created</option>
+
+                </select>
+
+            </div>
+
+            <div class="col-md-2 d-flex gap-2">
+
+                <button type="submit" class="btn btn-primary w-100">Filter</button>
+
+                <a href="/teacher/assessments" class="btn btn-outline-secondary">Reset</a>
+
+            </div>
+
+        </form>
+
+    </div>
+
+
+
+    <!-- Assessments Table -->
+
+    <div class="card glass-card border-0 shadow-sm">
+
+        <div class="table-responsive">
+
+            <table class="table table-hover align-middle mb-0">
+
+                <thead class="table-light">
+
+                    <tr>
+
+                        <th>Assessment</th>
+
+                        <th>Type</th>
+
+                        <th>Lifecycle Status</th>
+
+                        <th>Schedule</th>
+
+                        <th>Duration</th>
+
+                        <th>Assignments</th>
+
+                        <th class="text-end">Actions</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% if assessments %}
+
+                        {% for item in assessments %}
+
+                        <tr>
+
+                            <td>
+
+                                <div class="fw-bold">{{ item.exam.title }}</div>
+
+                                <small class="text-muted">{{ item.exam.description or 'No description provided' }}</small>
+
+                            </td>
+
+                            <td>
+
+                                <span class="badge {% if item.out.assessment_type == 'academic' %}bg-primary{% elif item.out.assessment_type == 'placement' %}bg-info text-dark{% elif item.out.assessment_type == 'technical' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+
+                                    {{ item.out.assessment_type|capitalize }}
+
+                                </span>
+
+                            </td>
+
+                            <td>
+
+                                <span class="badge {% if item.out.effective_status == 'active' %}bg-success{% elif item.out.effective_status == 'scheduled' %}bg-info text-dark{% elif item.out.effective_status == 'completed' %}bg-dark{% elif item.out.effective_status == 'archived' %}bg-secondary{% else %}bg-light text-dark border{% endif %}">
+
+                                    {{ item.out.effective_status|capitalize }}
+
+                                </span>
+
+                            </td>
+
+                            <td>
+
+                                <small class="d-block">{{ item.exam.start_time.strftime('%b %d, %Y %I:%M %p') }}</small>
+
+                                <small class="text-muted">to {{ item.exam.end_time.strftime('%b %d, %I:%M %p') }}</small>
+
+                            </td>
+
+                            <td>{{ item.exam.duration_minutes }} mins</td>
+
+                            <td>
+
+                                <span class="badge bg-light text-dark border">
+
+                                    👤 {{ item.assigned_candidates }} candidates
+
+                                </span>
+
+                                {% if item.assigned_groups > 0 %}
+
+                                <span class="badge bg-light text-dark border ms-1">
+
+                                    👥 {{ item.assigned_groups }} groups
+
+                                </span>
+
+                                {% endif %}
+
+                            </td>
+
+                            <td class="text-end">
+
+                                <a href="/teacher/exam/{{ item.exam.id }}/monitor" class="btn btn-sm btn-outline-primary">Monitor</a>
+
+                                <a href="/teacher/exam/{{ item.exam.id }}/submissions" class="btn btn-sm btn-outline-secondary">Submissions</a>
+
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <tr>
+
+                            <td colspan="7" class="text-center py-5 text-muted">
+
+                                <h5>No assessments found matching the selected criteria.</h5>
+
+                                <p>Click "+ Create Assessment" to create your first assessment.</p>
+
+                            </td>
+
+                        </tr>
+
+                    {% endif %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+
+        <!-- Pagination -->
+
+        {% if total_pages > 1 %}
+
+        <div class="card-footer bg-transparent d-flex justify-content-between align-items-center py-3">
+
+            <span class="text-muted small">Showing Page {{ current_page }} of {{ total_pages }} ({{ total_count }} total)</span>
+
+            <div class="btn-group">
+
+                {% if current_page > 1 %}
+
+                <a href="/teacher/assessments?page={{ current_page - 1 }}&search={{ search }}&type={{ assessment_type }}&status={{ status }}" class="btn btn-sm btn-outline-secondary">Previous</a>
+
+                {% endif %}
+
+                {% if current_page < total_pages %}
+
+                <a href="/teacher/assessments?page={{ current_page + 1 }}&search={{ search }}&type={{ assessment_type }}&status={{ status }}" class="btn btn-sm btn-outline-secondary">Next</a>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+{% endblock %}

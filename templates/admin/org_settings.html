@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+
+
+{% block content %}
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+
+    <div>
+
+        <h2 class="fw-bold mb-1">⚙️ Organization Settings: {{ org.name }}</h2>
+
+        <p class="text-muted mb-0">Branding, assessment policies, and tenant configurations.</p>
+
+    </div>
+
+    <a href="/admin/organizations" class="btn btn-outline-secondary rounded-pill">← Back to Organizations</a>
+
+</div>
+
+
+
+<div class="row">
+
+    <div class="col-lg-8">
+
+        <div class="card glass-card border-0 shadow-sm p-4">
+
+            <form id="orgConfigForm">
+
+                <h5 class="fw-bold mb-3 border-bottom pb-2">Branding & Identity</h5>
+
+
+
+                <div class="row g-3 mb-3">
+
+                    <div class="col-md-6">
+
+                        <label class="form-label fw-bold">Branding Name</label>
+
+                        <input type="text" class="form-control" name="branding_name" value="{{ configs.branding_name.value }}">
+
+                    </div>
+
+                    <div class="col-md-6">
+
+                        <label class="form-label fw-bold">Logo URL</label>
+
+                        <input type="text" class="form-control" name="branding_logo_url" value="{{ configs.branding_logo_url.value }}" placeholder="https://...">
+
+                    </div>
+
+                </div>
+
+
+
+                <h5 class="fw-bold mb-3 border-bottom pb-2">Assessment Policy Defaults</h5>
+
+
+
+                <div class="row g-3 mb-3">
+
+                    <div class="col-md-4">
+
+                        <label class="form-label fw-bold">Default Duration (Minutes)</label>
+
+                        <input type="number" class="form-control" name="default_duration_minutes" value="{{ configs.default_duration_minutes.value }}" min="1">
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <label class="form-label fw-bold">Pass Cut-off (%)</label>
+
+                        <input type="number" step="0.1" class="form-control" name="default_pass_percentage" value="{{ configs.default_pass_percentage.value }}" min="0" max="100">
+
+                    </div>
+
+                    <div class="col-md-4">
+
+                        <label class="form-label fw-bold">Default Max Attempts</label>
+
+                        <input type="number" class="form-control" name="default_max_attempts" value="{{ configs.default_max_attempts.value }}" min="1" max="10">
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-bold">Allowed Assessment Types</label>
+
+                    <input type="text" class="form-control" name="allowed_assessment_types" value="{{ configs.allowed_assessment_types.value }}">
+
+                    <small class="text-muted">Comma-separated: academic, placement, technical, custom</small>
+
+                </div>
+
+
+
+                <div class="mb-3">
+
+                    <label class="form-label fw-bold">User Registration Policy</label>
+
+                    <select class="form-select" name="user_registration_policy">
+
+                        <option value="invite_only" {% if configs.user_registration_policy.value == 'invite_only' %}selected{% endif %}>Invite / Admin Onboarding Only</option>
+
+                        <option value="open" {% if configs.user_registration_policy.value == 'open' %}selected{% endif %}>Open Registration</option>
+
+                        <option value="closed" {% if configs.user_registration_policy.value == 'closed' %}selected{% endif %}>Closed</option>
+
+                    </select>
+
+                </div>
+
+
+
+                <div class="form-check form-switch mb-4">
+
+                    <input class="form-check-input" type="checkbox" role="switch" id="allowBacktracking" name="allow_backtracking" {% if configs.allow_backtracking.value %}checked{% endif %}>
+
+                    <label class="form-check-label fw-bold" for="allowBacktracking">
+
+                        Allow Question Backtracking by Default
+
+                    </label>
+
+                </div>
+
+
+
+                <button type="submit" class="btn btn-primary fw-bold px-4 py-2 rounded-pill">
+
+                    💾 Save Organization Settings
+
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="col-lg-4 mt-4 mt-lg-0">
+
+        <div class="card glass-card border-0 shadow-sm p-3 mb-3 bg-light">
+
+            <h6 class="fw-bold mb-2">🏢 Organization Overview</h6>
+
+            <div class="small mb-1"><strong>Name:</strong> {{ org.name }}</div>
+
+            <div class="small mb-1"><strong>Slug:</strong> <code>{{ org.slug }}</code></div>
+
+            <div class="small mb-1"><strong>Status:</strong>
+
+                {% if org.is_suspended %}<span class="badge bg-danger">Suspended</span>
+
+                {% elif not org.is_active %}<span class="badge bg-secondary">Inactive</span>
+
+                {% else %}<span class="badge bg-success">Active</span>{% endif %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+document.getElementById("orgConfigForm").addEventListener("submit", async function(e) {
+
+    e.preventDefault();
+
+    const payload = {
+
+        configs: {
+
+            branding_name: this.branding_name.value,
+
+            branding_logo_url: this.branding_logo_url.value,
+
+            default_duration_minutes: parseInt(this.default_duration_minutes.value),
+
+            default_pass_percentage: parseFloat(this.default_pass_percentage.value),
+
+            default_max_attempts: parseInt(this.default_max_attempts.value),
+
+            allowed_assessment_types: this.allowed_assessment_types.value,
+
+            user_registration_policy: this.user_registration_policy.value,
+
+            allow_backtracking: this.allow_backtracking.checked
+
+        }
+
+    };
+
+
+
+    try {
+
+        const res = await fetch("/api/v1/admin/organizations/{{ org.id }}/config", {
+
+            method: "PUT",
+
+            headers: {"Content-Type": "application/json"},
+
+            body: JSON.stringify(payload)
+
+        });
+
+        if (res.ok) {
+
+            alert("Organization settings updated successfully.");
+
+            location.reload();
+
+        } else {
+
+            const err = await res.json();
+
+            alert("Error: " + (err.detail || "Could not save configuration"));
+
+        }
+
+    } catch(err) {
+
+        alert("Network error: " + err.message);
+
+    }
+
+});
+
+</script>
+
+{% endblock %}

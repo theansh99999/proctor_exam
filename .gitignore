@@ -1,9 +1,59 @@
+# ── Python ─────────────────────────────────────────────────────────────────────
 __pycache__/
-routers/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual Environment ────────────────────────────────────────────────────────
 venv/
+env/
+ENV/
+.venv/
+
+# ── Environment & Secrets ──────────────────────────────────────────────────────
+# NEVER commit .env — it contains real credentials
 .env
-future_txt
-commit.txt
-analysis.txt
-testing/
+*.env
+.env.*
+!.env.example
+!.env.production.example
+service-account.json
+/etc/secrets/
+*.pem
+*.key
+
+# ── IDE & Local Editor State ───────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# ── Generated / Scratch Files ──────────────────────────────────────────────────
 report.html
+analysis.txt
+commit.txt
+future_txt
+*.log
+*.tmp
+.pytest_cache/
+.coverage
+htmlcov/
+testing/STRUCTURE.txt
+testing/verify_diagnostics.py
+
+# ── Database & Backups ─────────────────────────────────────────────────────────
+# Exclude SQLite databases, dumps, and backup archives (preserve migrations and schema)
+*.sqlite3
+*.db
+backups/
+*.backup
+*.dump
+*.sha256
+*.sql.sha256

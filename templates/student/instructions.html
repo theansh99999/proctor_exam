@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+
+
+
+{% block content %}
+
+<div class="container py-4" style="max-width: 900px;">
+
+    <!-- Back to Dashboard -->
+
+    <div class="mb-3">
+
+        <a href="/student/dashboard" class="btn btn-outline-secondary btn-sm">
+
+            &larr; Back to Dashboard
+
+        </a>
+
+    </div>
+
+
+
+    <!-- Assessment Header Card -->
+
+    <div class="card glass-card border-0 shadow-sm p-4 mb-4" style="border-left: 5px solid #4f46e5 !important;">
+
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+
+            <div>
+
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle text-uppercase mb-2">
+
+                    {{ exam.assessment_type or "Academic" }} Assessment
+
+                </span>
+
+                <h2 class="fw-bold mb-1">{{ exam.title }}</h2>
+
+                <p class="text-muted mb-0">{{ exam.description or "No description provided." }}</p>
+
+            </div>
+
+            <div class="text-end">
+
+                <span class="badge {% if remaining_attempts > 0 %}bg-success-subtle text-success border border-success-subtle{% else %}bg-danger-subtle text-danger border border-danger-subtle{% endif %} fs-6 px-3 py-2">
+
+                    Remaining Attempts: {{ remaining_attempts }} / {{ exam.max_attempts or 1 }}
+
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Key Metrics Grid -->
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-3 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center h-100">
+
+                <div class="text-muted small text-uppercase fw-bold">Duration</div>
+
+                <h4 class="fw-bold text-primary mb-0 mt-1">⏱️ {{ exam.duration_minutes }} min</h4>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center h-100">
+
+                <div class="text-muted small text-uppercase fw-bold">Total Questions</div>
+
+                <h4 class="fw-bold text-dark mb-0 mt-1">📋 {{ total_questions }}</h4>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center h-100">
+
+                <div class="text-muted small text-uppercase fw-bold">Total Marks</div>
+
+                <h4 class="fw-bold text-success mb-0 mt-1">🏆 {{ max_marks }} pts</h4>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3 col-6">
+
+            <div class="card glass-card border-0 shadow-sm p-3 text-center h-100">
+
+                <div class="text-muted small text-uppercase fw-bold">Passing Criteria</div>
+
+                <h4 class="fw-bold text-warning mb-0 mt-1">
+
+                    {% if exam.passing_criteria == 'percentage' %}
+
+                        {{ exam.passing_percentage or 40 }}%
+
+                    {% else %}
+
+                        {{ exam.passing_marks or 0 }} pts
+
+                    {% endif %}
+
+                </h4>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Detailed Configuration Accordion / Cards -->
+
+    <div class="row g-4 mb-4">
+
+        <!-- Rules & Instructions -->
+
+        <div class="col-lg-7">
+
+            <div class="card glass-card border-0 shadow-sm p-4 h-100">
+
+                <h5 class="fw-bold mb-3 d-flex align-items-center gap-2">
+
+                    <span>📜</span> Assessment Instructions
+
+                </h5>
+
+                {% if exam.instructions %}
+
+                <div class="p-3 bg-light rounded mb-3" style="white-space: pre-wrap;">{{ exam.instructions }}</div>
+
+                {% else %}
+
+                <p class="text-muted">Standard institutional examination regulations apply.</p>
+
+                {% endif %}
+
+
+
+                <h6 class="fw-bold mt-3 mb-2">Marking Scheme:</h6>
+
+                <ul class="list-unstyled mb-3">
+
+                    <li class="mb-1">
+
+                        <strong>✓ Correct Answer:</strong>
+
+                        Marks defined per question (default {{ exam.default_marks }} pt).
+
+                    </li>
+
+                    <li class="mb-1">
+
+                        <strong>✗ Negative Marking:</strong>
+
+                        {% if exam.enable_negative_marking and exam.default_negative_marks > 0 %}
+
+                            <span class="text-danger fw-bold">Enabled</span> ({{ exam.default_negative_marks }} pts deducted per incorrect answer).
+
+                        {% else %}
+
+                            <span class="text-muted">Disabled (No penalty for incorrect answers).</span>
+
+                        {% endif %}
+
+                    </li>
+
+                    <li>
+
+                        <strong>⏱️ Timer Enforcement:</strong>
+
+                        {% if exam.timer_type == 'per_question' %}
+
+                            <span class="badge bg-warning text-dark">Per-Question Timer</span> — Each question has a strict server deadline.
+
+                        {% else %}
+
+                            <span class="badge bg-info text-dark">Overall Timer</span> — {{ exam.duration_minutes }} minutes total.
+
+                        {% endif %}
+
+                    </li>
+
+                </ul>
+
+
+
+                <h6 class="fw-bold mb-2">Schedule Window:</h6>
+
+                <div class="small text-muted mb-2">
+
+                    <div><strong>Opens:</strong> {{ exam.start_time.strftime('%Y-%m-%d %H:%M UTC') if exam.start_time else 'Immediate' }}</div>
+
+                    <div><strong>Closes:</strong> {{ exam.end_time.strftime('%Y-%m-%d %H:%M UTC') if exam.end_time else 'Open' }}</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- Proctoring Requirements -->
+
+        <div class="col-lg-5">
+
+            <div class="card glass-card border-0 shadow-sm p-4 h-100" style="border-top: 4px solid #ef4444 !important;">
+
+                <h5 class="fw-bold mb-3 d-flex align-items-center gap-2 text-danger">
+
+                    <span>🛡️</span> Proctoring Requirements
+
+                </h5>
+
+                <p class="small text-muted mb-3">
+
+                    ExamProctor automated AI proctoring is enabled for this assessment. Ensure your setup meets all requirements:
+
+                </p>
+
+                <div class="d-flex flex-column gap-2 mb-4">
+
+                    {% if not policy or policy.webcam_required %}
+
+                    <div class="d-flex align-items-center gap-2">
+
+                        <span class="text-success">✔</span>
+
+                        <span class="small">Working webcam and microphone</span>
+
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+
+                        <span class="text-success">✔</span>
+
+                        <span class="small">Well-lit room with face clearly visible</span>
+
+                    </div>
+
+                    {% endif %}
+
+                    {% if policy and policy.microphone_required %}
+
+                    <div class="d-flex align-items-center gap-2">
+
+                        <span class="text-success">✔</span>
+
+                        <span class="small">Microphone active for ambient audio monitoring</span>
+
+                    </div>
+
+                    {% endif %}
+
+                    {% if not policy or policy.fullscreen_required %}
+
+                    <div class="d-flex align-items-center gap-2">
+
+                        <span class="text-warning">⚠</span>
+
+                        <span class="small">Fullscreen mode required throughout assessment</span>
+
+                    </div>
+
+                    {% endif %}
+
+                    {% if not policy or policy.tab_switch_detection %}
+
+                    <div class="d-flex align-items-center gap-2">
+
+                        <span class="text-danger">✖</span>
+
+                        <span class="small">Do NOT switch tabs or minimize browser</span>
+
+                    </div>
+
+                    {% endif %}
+
+                    {% if not policy or policy.copy_paste_restricted %}
+
+                    <div class="d-flex align-items-center gap-2">
+
+                        <span class="text-danger">✖</span>
+
+                        <span class="small">Copy and paste restricted on questions</span>
+
+                    </div>
+
+                    {% endif %}
+
+                    <div class="d-flex align-items-center gap-2">
+
+                        <span class="text-danger">✖</span>
+
+                        <span class="small">No second person or cell phones permitted</span>
+
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+
+                        <span class="text-danger">✖</span>
+
+                        <span class="small">No multiple displays or screen sharing</span>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="alert alert-warning py-2 small mb-0">
+
+                    <strong>Note:</strong> Violations are automatically flagged and reported to your examiner in real time.
+
+                    {% if policy and policy.auto_submit_threshold and policy.auto_submit_threshold > 0 %}
+
+                    <div class="mt-1 fw-bold text-danger">⚠️ Automated submission triggers at {{ policy.auto_submit_threshold }} violations.</div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- Candidate Confirmation & Start Action -->
+
+    <div class="card glass-card border-0 shadow-sm p-4 text-center">
+
+        {% if remaining_attempts > 0 or active_session %}
+
+            <div class="form-check d-inline-block text-start mb-3">
+
+                <input class="form-check-input" type="checkbox" id="confirmRulesCheck" onchange="toggleStartBtn()">
+
+                <label class="form-check-label fw-bold small text-dark" for="confirmRulesCheck">
+
+                    I confirm that I have read and agree to the instructions, honor code, and proctoring regulations.
+
+                </label>
+
+            </div>
+
+            <div>
+
+                <a id="startExamBtn" href="/student/take_exam/{{ exam.id }}" class="btn btn-primary-custom btn-lg fw-bold px-5 shadow disabled" style="border-radius: 12px; pointer-events: none; opacity: 0.5;">
+
+                    {% if active_session %}
+
+                        🚀 Resume Assessment Attempt #{{ active_session.attempt_number }} &rarr;
+
+                    {% else %}
+
+                        🚀 Begin Assessment &rarr;
+
+                    {% endif %}
+
+                </a>
+
+            </div>
+
+        {% else %}
+
+            <div class="alert alert-danger py-3 mb-0">
+
+                <h5 class="fw-bold mb-1">Attempt Limit Reached</h5>
+
+                <p class="mb-0 small">You have utilized all {{ exam.max_attempts or 1 }} permitted attempts for this assessment.</p>
+
+            </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+function toggleStartBtn() {
+
+    const check = document.getElementById('confirmRulesCheck');
+
+    const btn = document.getElementById('startExamBtn');
+
+    if (check && btn) {
+
+        if (check.checked) {
+
+            btn.classList.remove('disabled');
+
+            btn.style.pointerEvents = 'auto';
+
+            btn.style.opacity = '1';
+
+        } else {
+
+            btn.classList.add('disabled');
+
+            btn.style.pointerEvents = 'none';
+
+            btn.style.opacity = '0.5';
+
+        }
+
+    }
+
+}
+
+</script>
+
+{% endblock %}
