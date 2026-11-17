@@ -62,3 +62,6 @@ slowapi>=0.1.9
 google-api-python-client
 google-auth
 google-auth-httplib2
+
+# CSRF token signing (csrf.py)
+itsdangerous>=2.1.2
