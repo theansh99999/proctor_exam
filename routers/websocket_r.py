@@ -60,6 +60,14 @@ async def websocket_teacher_endpoint(websocket: WebSocket, teacher_id: int):
             db.close()
         return
 
+    # ── 3b. Maintenance mode enforcement ──────────────────────────────────────
+    from core.maintenance import is_maintenance_mode
+    if is_maintenance_mode(db) and not auth.is_super_admin(user):
+        await websocket.close(code=1013, reason="Platform maintenance in progress")
+        if hasattr(db, "close"):
+            db.close()
+        return
+
     if hasattr(db, "close"):
         db.close()
 

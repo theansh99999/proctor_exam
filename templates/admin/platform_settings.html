@@ -71,27 +71,21 @@
 
 
                 <div class="row g-3 mb-4">
-
-                    <div class="col-md-6">
-
+                    <div class="col-md-4">
                         <label class="form-label fw-bold">Max Upload Size (MB)</label>
-
                         <input type="number" class="form-control" name="max_upload_size_mb" value="{{ configs.max_upload_size_mb.value }}" min="1" max="100">
-
                         <small class="text-muted">{{ configs.max_upload_size_mb.description }}</small>
-
                     </div>
-
-                    <div class="col-md-6">
-
-                        <label class="form-label fw-bold">Rate Limit (req/minute)</label>
-
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Rate Limit (req/min)</label>
                         <input type="number" class="form-control" name="rate_limit_per_minute" value="{{ configs.rate_limit_per_minute.value }}" min="10" max="600">
-
                         <small class="text-muted">{{ configs.rate_limit_per_minute.description }}</small>
-
                     </div>
-
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Password Min Length</label>
+                        <input type="number" class="form-control" name="password_policy_min_length" value="{{ configs.password_policy_min_length.value }}" min="6" max="32">
+                        <small class="text-muted">{{ configs.password_policy_min_length.description }}</small>
+                    </div>
                 </div>
 
 
@@ -227,6 +221,8 @@ document.getElementById("platformConfigForm").addEventListener("submit", async f
             max_upload_size_mb: parseInt(this.max_upload_size_mb.value),
 
             rate_limit_per_minute: parseInt(this.rate_limit_per_minute.value),
+
+            password_policy_min_length: parseInt(this.password_policy_min_length.value),
 
             allowed_file_formats: this.allowed_file_formats.value,
 

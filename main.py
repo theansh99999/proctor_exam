@@ -90,6 +90,10 @@ app.add_middleware(
     expose_headers=["X-Request-ID", "X-Process-Time"]
 )
 
+# 5. Platform Maintenance Mode (Guards candidates & examiners during maintenance)
+from core.maintenance import MaintenanceMiddleware
+app.add_middleware(MaintenanceMiddleware)
+
 # ── Health & Observability Router ─────────────────────────────────────────────
 app.include_router(health_router)
 

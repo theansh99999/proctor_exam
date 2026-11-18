@@ -40,9 +40,14 @@
                         <input type="password" name="password" class="form-control form-control-lg bg-body border-danger border-opacity-25 shadow-sm mt-2" placeholder="Leave blank to keep current password" minlength="8">
                         <div class="form-text text-danger opacity-75 mt-2 fw-medium">Minimum 8 characters. Leave blank to keep existing password.</div>
                     </div>
+                    <div class="mb-4 p-4 rounded-3 border border-danger border-opacity-25" style="background: rgba(239, 68, 68, 0.05);">
+                        <label class="form-label text-danger fw-bold">Confirm New Password</label>
+                        <input type="password" name="confirm_password" class="form-control form-control-lg bg-body border-danger border-opacity-25 shadow-sm mt-2" placeholder="Retype new password to confirm" minlength="8">
+                        <div class="form-text text-danger opacity-75 mt-2 fw-medium">Must match new password above.</div>
+                    </div>
 
                     <div class="d-flex justify-content-end gap-3 mt-5">
-                        <a href="{% if user.role == 'teacher' %}/teacher/dashboard{% else %}/student/dashboard{% endif %}" class="btn btn-light px-4 fw-bold border rounded-pill shadow-sm py-2">Cancel</a>
+                        <a href="/dashboard" class="btn btn-light px-4 fw-bold border rounded-pill shadow-sm py-2">Cancel</a>
                         <button type="submit" class="btn btn-primary-custom px-5 fw-bold shadow border-0 rounded-pill py-2">Save Changes</button>
                     </div>
                 </form>

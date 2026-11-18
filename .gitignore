@@ -40,6 +40,7 @@ report.html
 analysis.txt
 commit.txt
 future_txt
+scratch/
 *.log
 *.tmp
 .pytest_cache/

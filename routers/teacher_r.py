@@ -1,30 +1,16 @@
 from fastapi import APIRouter, Request, Depends, Form, BackgroundTasks, HTTPException
-
-from fastapi.templating import Jinja2Templates
-
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
-
 from sqlalchemy.orm import Session, joinedload
-
 from typing import Optional
-
 import models, database, auth, email_service
-
 from datetime import datetime, timezone
-
 from time_utils import utc_now, to_utc, to_utc_iso
-
+from core.templates import templates
 from modules.assessments.service import AssessmentService
-
 from modules.assessments.schemas import AssessmentOut
-
 from modules.questions.service import QuestionBankService
 
-
-
 router = APIRouter(prefix="/teacher", tags=["Teacher Dashboard"])
-
-templates = Jinja2Templates(directory="templates")
 
 
 

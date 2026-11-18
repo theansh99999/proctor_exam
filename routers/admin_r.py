@@ -4,7 +4,6 @@ routers/admin_r.py
 HTML UI Routes for Phase 10: Platform Administration & System Configuration.
 """
 from fastapi import APIRouter, Request, Depends, HTTPException, status, Query
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -12,11 +11,11 @@ from typing import Optional
 import database
 import models
 import auth
-from core.rbac import is_super_admin, is_org_admin
+from core.rbac import is_super_admin, is_org_admin, get_dashboard_url, get_role_display_name
+from core.templates import templates
 from modules.admin.service import AdminService
 
 router = APIRouter(prefix="/admin", tags=["Admin UI"])
-templates = Jinja2Templates(directory="templates")
 
 
 def require_admin_ui(request: Request, db: Session = Depends(database.get_db)) -> models.User:
@@ -60,10 +59,14 @@ def admin_organizations(
     request: Request,
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_admin_ui)
 ):
-    orgs = AdminService.list_organizations(db, current_user, status_filter=status, search=search)
+    page_size = 15
+    orgs, total_count, total_pages = AdminService.list_organizations_paginated(
+        db, current_user, status_filter=status, search=search, page=page, page_size=page_size
+    )
     return templates.TemplateResponse(
         request=request,
         name="admin/organizations.html",
@@ -72,7 +75,11 @@ def admin_organizations(
             "is_super_admin": is_super_admin(current_user),
             "orgs": orgs,
             "status_filter": status,
-            "search": search
+            "search": search,
+            "current_page": page,
+            "total_pages": total_pages,
+            "total_count": total_count,
+            "page_size": page_size
         }
     )
 
@@ -86,17 +93,20 @@ def admin_users(
     role: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_admin_ui)
 ):
-    users = AdminService.list_users(
+    page_size = 20
+    users, total_count, total_pages = AdminService.list_users_paginated(
         db=db,
         current_user=current_user,
         org_id=org_id,
         role=role,
         status_filter=status,
         search=search,
-        limit=200
+        page=page,
+        page_size=page_size
     )
     org_list = db.query(models.Organization).order_by(models.Organization.name).all() if is_super_admin(current_user) else []
 
@@ -111,7 +121,11 @@ def admin_users(
             "current_org_id": org_id,
             "role_filter": role,
             "status_filter": status,
-            "search": search
+            "search": search,
+            "current_page": page,
+            "total_pages": total_pages,
+            "total_count": total_count,
+            "page_size": page_size
         }
     )
 
@@ -172,16 +186,19 @@ def admin_audit_logs(
     org_id: Optional[int] = Query(None),
     action: Optional[str] = Query(None),
     entity_type: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(require_admin_ui)
 ):
-    logs = AdminService.get_audit_logs(
+    page_size = 25
+    logs, total_count, total_pages = AdminService.get_audit_logs_paginated(
         db=db,
         current_user=current_user,
         org_id=org_id,
         action=action,
         entity_type=entity_type,
-        limit=100
+        page=page,
+        page_size=page_size
     )
     org_list = db.query(models.Organization).order_by(models.Organization.name).all() if is_super_admin(current_user) else []
 
@@ -195,7 +212,11 @@ def admin_audit_logs(
             "org_list": org_list,
             "current_org_id": org_id,
             "action_filter": action,
-            "entity_filter": entity_type
+            "entity_filter": entity_type,
+            "current_page": page,
+            "total_pages": total_pages,
+            "total_count": total_count,
+            "page_size": page_size
         }
     )
 

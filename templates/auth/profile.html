@@ -9,16 +9,34 @@
             </div>
             <h2 class="fw-bold mb-1 text-body-emphasis">{{ user.name }}</h2>
             <p class="text-muted d-block mb-3 fs-5">{{ user.email }}</p>
-            <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary px-3 py-2 fs-6 text-uppercase mb-2 shadow-sm" style="letter-spacing: 1px;">
-                {% if user.role == "teacher" %}🛡️ Instructor{% else %}🎓 Student{% endif %}
+            {% if user.role == 'super_admin' %}
+            <span class="badge bg-danger bg-opacity-25 text-danger border border-danger px-3 py-2 fs-6 text-uppercase mb-2 shadow-sm" style="letter-spacing: 1px;">
+                👑 Super Admin
             </span>
+            {% elif user.role in ('org_admin', 'admin') %}
+            <span class="badge bg-warning bg-opacity-25 text-warning-emphasis border border-warning px-3 py-2 fs-6 text-uppercase mb-2 shadow-sm" style="letter-spacing: 1px;">
+                🏢 Organization Admin
+            </span>
+            {% elif user.role in ('examiner', 'teacher') %}
+            <span class="badge bg-primary bg-opacity-25 text-primary border border-primary px-3 py-2 fs-6 text-uppercase mb-2 shadow-sm" style="letter-spacing: 1px;">
+                🛡️ Examiner
+            </span>
+            {% elif user.role == 'placement_officer' %}
+            <span class="badge bg-info bg-opacity-25 text-info-emphasis border border-info px-3 py-2 fs-6 text-uppercase mb-2 shadow-sm" style="letter-spacing: 1px;">
+                💼 Placement Officer
+            </span>
+            {% else %}
+            <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary px-3 py-2 fs-6 text-uppercase mb-2 shadow-sm" style="letter-spacing: 1px;">
+                🎓 Candidate
+            </span>
+            {% endif %}
             
             <hr class="my-4 border-secondary opacity-25">
             
             <div class="row text-center mt-4 mb-4">
                 <div class="col-6 border-end border-secondary border-opacity-10">
                     <p class="text-muted rounded-pill text-uppercase fw-bold mb-1" style="font-size: 0.75rem;">Account Level</p>
-                    <h5 class="fw-bold text-primary mb-0">{{ user.role|capitalize }}</h5>
+                    <h5 class="fw-bold text-primary mb-0">{{ get_role_display_name(user.role) }}</h5>
                 </div>
                 <div class="col-6">
                     <p class="text-muted rounded-pill text-uppercase fw-bold mb-1" style="font-size: 0.75rem;">Status</p>
@@ -28,7 +46,7 @@
             
             <div class="mt-4 pt-2">
                 <a href="/settings" class="btn btn-outline-primary px-4 fw-bold shadow-sm rounded-pill py-2 w-100 border-2" style="transition: all 0.2s ease;">⚙️ Manage Configuration</a>
-                <a href="{% if user.role == 'teacher' %}/teacher/dashboard{% else %}/student/dashboard{% endif %}" class="btn btn-light px-4 fw-bold shadow-sm rounded-pill py-2 w-100 border mt-3" style="transition: all 0.2s ease;">&larr; Return to Dashboard</a>
+                <a href="/dashboard" class="btn btn-light px-4 fw-bold shadow-sm rounded-pill py-2 w-100 border mt-3" style="transition: all 0.2s ease;">&larr; Return to Dashboard</a>
             </div>
         </div>
     </div>

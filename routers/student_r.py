@@ -1,36 +1,19 @@
 from fastapi import APIRouter, Request, Depends, HTTPException, status, Form
-
-from fastapi.templating import Jinja2Templates
-
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-
 from sqlalchemy.orm import Session, joinedload
-
 from fastapi.concurrency import run_in_threadpool
-
 import models, database, auth
-
 from datetime import datetime, timezone, timedelta
-
 from typing import Optional, List, Dict, Any, Tuple
-
 from time_utils import utc_now, to_utc, to_utc_iso
-
+from core.templates import templates
 from modules.assessments.service import AssessmentService
-
 from modules.proctoring.service import ProctoringService
-
 import traceback
-
 import json
-
 import random
 
-
-
 router = APIRouter(prefix="/student", tags=["Student Interface"])
-
-templates = Jinja2Templates(directory="templates")
 
 
 

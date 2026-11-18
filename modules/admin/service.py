@@ -155,6 +155,74 @@ class AdminService:
             })
         return results
 
+    @staticmethod
+    def get_audit_logs_paginated(
+        db: Session,
+        current_user: models.User,
+        org_id: Optional[int] = None,
+        actor_id: Optional[int] = None,
+        action: Optional[str] = None,
+        entity_type: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[Dict[str, Any]], int, int]:
+        """
+        Search audit logs with strict role and organization filtering with pagination.
+        Returns (logs, total_count, total_pages).
+        """
+        import math
+        query = db.query(models.AuditLog).options(
+            joinedload(models.AuditLog.actor),
+            joinedload(models.AuditLog.organization)
+        )
+
+        if is_super_admin(current_user):
+            if org_id is not None:
+                query = query.filter(models.AuditLog.organization_id == org_id)
+        elif is_org_admin(current_user):
+            query = query.filter(models.AuditLog.organization_id == current_user.organization_id)
+        else:
+            raise HTTPException(status_code=403, detail="Not authorized to view audit logs.")
+
+        if actor_id is not None:
+            query = query.filter(models.AuditLog.actor_id == actor_id)
+        if action:
+            query = query.filter(models.AuditLog.action == action)
+        if entity_type:
+            query = query.filter(models.AuditLog.entity_type == entity_type)
+
+        total_count = query.count()
+        total_pages = max(1, math.ceil(total_count / page_size)) if total_count > 0 else 1
+        page = max(1, min(page, total_pages))
+        offset = (page - 1) * page_size
+
+        logs = query.order_by(desc(models.AuditLog.created_at)).offset(offset).limit(page_size).all()
+
+        results = []
+        for log in logs:
+            meta = None
+            if log.metadata_json:
+                try:
+                    meta = json.loads(log.metadata_json)
+                except Exception:
+                    meta = {"raw": log.metadata_json}
+
+            results.append({
+                "id": log.id,
+                "actor_id": log.actor_id,
+                "actor_name": log.actor.name if log.actor else None,
+                "actor_email": log.actor.email if log.actor else None,
+                "organization_id": log.organization_id,
+                "organization_name": log.organization.name if log.organization else None,
+                "action": log.action,
+                "entity_type": log.entity_type,
+                "entity_id": log.entity_id,
+                "ip_address": log.ip_address,
+                "metadata": meta,
+                "created_at": log.created_at
+            })
+        return results, total_count, total_pages
+
     # =========================================================================
     # 2. SUPER ADMIN DASHBOARD & ACTIVITY
     # =========================================================================
@@ -446,6 +514,64 @@ class AdminService:
                 "total_exams": exam_count
             })
         return results
+
+    @staticmethod
+    def list_organizations_paginated(
+        db: Session,
+        current_user: models.User,
+        status_filter: Optional[str] = None,
+        search: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[Dict[str, Any]], int, int]:
+        """List organizations with pagination, search, and status filter."""
+        import math
+        query = db.query(models.Organization)
+
+        if not is_super_admin(current_user):
+            if current_user.organization_id is None:
+                return [], 0, 1
+            query = query.filter(models.Organization.id == current_user.organization_id)
+
+        if status_filter == "active":
+            query = query.filter(models.Organization.is_active == True, models.Organization.is_suspended == False)
+        elif status_filter == "inactive":
+            query = query.filter(models.Organization.is_active == False)
+        elif status_filter == "suspended":
+            query = query.filter(models.Organization.is_suspended == True)
+
+        if search:
+            search_str = f"%{search.strip().lower()}%"
+            query = query.filter(
+                or_(
+                    func.lower(models.Organization.name).like(search_str),
+                    func.lower(models.Organization.slug).like(search_str)
+                )
+            )
+
+        total_count = query.count()
+        total_pages = max(1, math.ceil(total_count / page_size)) if total_count > 0 else 1
+        page = max(1, min(page, total_pages))
+        offset = (page - 1) * page_size
+
+        orgs = query.order_by(asc(models.Organization.name)).offset(offset).limit(page_size).all()
+        results = []
+        for org in orgs:
+            user_count = db.query(models.User).filter(models.User.organization_id == org.id).count()
+            exam_count = db.query(models.Exam).filter(models.Exam.organization_id == org.id).count()
+            results.append({
+                "id": org.id,
+                "name": org.name,
+                "slug": org.slug,
+                "description": org.description,
+                "is_active": bool(org.is_active),
+                "is_suspended": bool(org.is_suspended),
+                "created_at": org.created_at,
+                "updated_at": org.updated_at,
+                "total_users": user_count,
+                "total_exams": exam_count
+            })
+        return results, total_count, total_pages
 
     @staticmethod
     def create_organization(
@@ -776,6 +902,78 @@ class AdminService:
                 "is_suspended": getattr(u, "is_suspended", False)
             })
         return results
+
+    @staticmethod
+    def list_users_paginated(
+        db: Session,
+        current_user: models.User,
+        org_id: Optional[int] = None,
+        role: Optional[str] = None,
+        status_filter: Optional[str] = None,
+        search: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Tuple[List[Dict[str, Any]], int, int]:
+        """
+        List users with filtering and pagination.
+        Returns (users, total_count, total_pages).
+        """
+        import math
+        query = db.query(models.User).options(joinedload(models.User.organization))
+
+        if is_super_admin(current_user):
+            if org_id is not None:
+                query = query.filter(models.User.organization_id == org_id)
+        elif is_org_admin(current_user):
+            query = query.filter(models.User.organization_id == current_user.organization_id)
+        else:
+            raise HTTPException(status_code=403, detail="Not authorized to list users.")
+
+        if role:
+            norm_r = normalize_role(role)
+            if norm_r == PlatformRole.EXAMINER:
+                query = query.filter(models.User.role.in_(["examiner", "teacher"]))
+            elif norm_r == PlatformRole.CANDIDATE:
+                query = query.filter(models.User.role.in_(["candidate", "student"]))
+            else:
+                query = query.filter(models.User.role == role)
+
+        if status_filter == "active":
+            query = query.filter(models.User.is_active == True, models.User.is_suspended == False)
+        elif status_filter == "inactive":
+            query = query.filter(models.User.is_active == False)
+        elif status_filter == "suspended":
+            query = query.filter(models.User.is_suspended == True)
+
+        if search:
+            search_str = f"%{search.strip().lower()}%"
+            query = query.filter(
+                or_(
+                    func.lower(models.User.name).like(search_str),
+                    func.lower(models.User.email).like(search_str)
+                )
+            )
+
+        total_count = query.count()
+        total_pages = max(1, math.ceil(total_count / page_size)) if total_count > 0 else 1
+        page = max(1, min(page, total_pages))
+        offset = (page - 1) * page_size
+
+        users = query.order_by(asc(models.User.name)).offset(offset).limit(page_size).all()
+
+        results = []
+        for u in users:
+            results.append({
+                "id": u.id,
+                "email": u.email,
+                "name": u.name,
+                "role": u.role,
+                "organization_id": u.organization_id,
+                "organization_name": u.organization.name if u.organization else None,
+                "is_active": getattr(u, "is_active", True),
+                "is_suspended": getattr(u, "is_suspended", False)
+            })
+        return results, total_count, total_pages
 
     @staticmethod
     def get_user_details(db: Session, user_id: int, current_user: models.User) -> models.User:
@@ -1307,6 +1505,13 @@ class AdminService:
         db.commit()
         db.refresh(item)
 
+        if key == "maintenance_mode":
+            try:
+                from core.maintenance import invalidate_maintenance_cache
+                invalidate_maintenance_cache()
+            except Exception:
+                pass
+
         AdminService.log_audit(
             db=db,
             action="platform_config.update",
@@ -1409,6 +1614,13 @@ class AdminService:
 
         db.commit()
         db.refresh(item)
+
+        if key == "maintenance_mode":
+            try:
+                from core.maintenance import invalidate_maintenance_cache
+                invalidate_maintenance_cache()
+            except Exception:
+                pass
 
         AdminService.log_audit(
             db=db,

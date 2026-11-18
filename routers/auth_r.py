@@ -1,30 +1,16 @@
-from fastapi import APIRouter, Request, Depends, HTTPException, status, Form, Response
-
-from fastapi.templating import Jinja2Templates
-
+from fastapi import APIRouter, Request, Depends, HTTPException, status, Form, Response, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
-
 from sqlalchemy.orm import Session
-
 from typing import Optional
-
 import models, schemas, auth, database
-
 from datetime import timedelta
-
 import csrf as csrf_module
-
 from limiter import limiter
-
-from core.rbac import is_examiner_or_admin, is_super_admin
-
+from core.rbac import is_examiner_or_admin, is_super_admin, get_dashboard_url, get_role_display_name
+from core.templates import templates
 from modules.admin.service import AdminService
 
-
-
 router = APIRouter(tags=["UI Auth"])
-
-templates = Jinja2Templates(directory="templates")
 
 
 
@@ -268,26 +254,11 @@ def login_submit(
 
 
 
-    # Route Super Admin to admin dashboard, Examiner/Teacher to teacher dashboard, Candidate/Student to student dashboard
-
-    if is_super_admin(user):
-
-        redirect_url = "/admin/dashboard"
-
-    elif is_examiner_or_admin(user):
-
-        redirect_url = "/teacher/dashboard"
-
-    else:
-
-        redirect_url = "/student/dashboard"
-
-
+    # Route through centralized role-aware dashboard resolution
+    redirect_url = get_dashboard_url(user)
 
     res = RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
-
     res.set_cookie(key="access_token", value=f"Bearer {access_token}", httponly=True, samesite="lax")
-
     return res
 
 
@@ -431,14 +402,8 @@ def register_submit(
 
 
 @router.get("/dashboard")
-
 def redirect_dashboard(current_user: models.User = Depends(auth.require_auth)):
-
-    if is_examiner_or_admin(current_user):
-
-        return RedirectResponse(url="/teacher/dashboard", status_code=status.HTTP_302_FOUND)
-
-    return RedirectResponse(url="/student/dashboard", status_code=status.HTTP_302_FOUND)
+    return RedirectResponse(url=get_dashboard_url(current_user), status_code=status.HTTP_302_FOUND)
 
 
 
@@ -549,111 +514,97 @@ def user_settings(
 
 
 @router.post("/settings")
-
 def update_settings(
-
     request: Request,
-
     name: str = Form(...),
-
     current_password: str = Form(""),
-
     password: str = Form(""),
-
+    confirm_password: str = Form(""),
     csrf_token: Optional[str] = Form(None),
-
     db: Session = Depends(database.get_db),
-
     current_user: models.User = Depends(auth.require_auth)
-
 ):
-
     # ── CSRF check ──────────────────────────────────────────────────────────
-
     csrf_module.csrf_protect(request, csrf_token)
 
-
-
+    old_name = current_user.name
     current_user.name = name.strip()
 
-
-
-    # ── Password change requires current password verification ───────────────
-
+    # ── Password change requires current password and matching confirmation ───
     if password.strip():
-
         if not current_password.strip():
-
             csrf_token_new = csrf_module.generate_csrf_token(request)
-
             return templates.TemplateResponse(
-
                 request=request, name="auth/settings.html",
-
                 context={
-
                     "user": current_user,
-
                     "error": "Current password is required to set a new password.",
-
                     "csrf_token": csrf_token_new
-
                 },
-
-                status_code=200
-
+                status_code=400
             )
-
         if not auth.verify_password(current_password, current_user.password_hash):
-
             csrf_token_new = csrf_module.generate_csrf_token(request)
-
             return templates.TemplateResponse(
-
                 request=request, name="auth/settings.html",
-
                 context={
-
                     "user": current_user,
-
                     "error": "Current password is incorrect.",
-
                     "csrf_token": csrf_token_new
-
                 },
-
-                status_code=200
-
+                status_code=400
             )
-
-        if len(password.strip()) < 8:
-
+        if password.strip() != confirm_password.strip():
             csrf_token_new = csrf_module.generate_csrf_token(request)
-
             return templates.TemplateResponse(
-
                 request=request, name="auth/settings.html",
-
                 context={
-
                     "user": current_user,
-
-                    "error": "New password must be at least 8 characters long.",
-
+                    "error": "New password and password confirmation do not match.",
                     "csrf_token": csrf_token_new
-
                 },
-
-                status_code=200
-
+                status_code=400
             )
-
+        if len(password.strip()) < 8:
+            csrf_token_new = csrf_module.generate_csrf_token(request)
+            return templates.TemplateResponse(
+                request=request, name="auth/settings.html",
+                context={
+                    "user": current_user,
+                    "error": "New password must be at least 8 characters long.",
+                    "csrf_token": csrf_token_new
+                },
+                status_code=400
+            )
         current_user.password_hash = auth.get_password_hash(password.strip())
+        try:
+            AdminService.log_audit(
+                db=db,
+                action="auth.password_update",
+                entity_type="user",
+                entity_id=str(current_user.id),
+                actor_id=current_user.id,
+                org_id=current_user.organization_id,
+                metadata={"email": current_user.email}
+            )
+        except Exception:
+            pass
 
-
+    if old_name != current_user.name:
+        try:
+            AdminService.log_audit(
+                db=db,
+                action="auth.profile_update",
+                entity_type="user",
+                entity_id=str(current_user.id),
+                actor_id=current_user.id,
+                org_id=current_user.organization_id,
+                metadata={"email": current_user.email, "old_name": old_name, "new_name": current_user.name}
+            )
+        except Exception:
+            pass
 
     db.commit()
-
     return RedirectResponse(url="/settings?msg=updated", status_code=302)
 
 
@@ -669,51 +620,37 @@ def update_settings(
 
 
 @router.get("/notifications", response_class=HTMLResponse)
-
 def notification_center_page(
-
     request: Request,
-
     category: Optional[str] = None,
-
+    page: int = Query(1, ge=1),
     db: Session = Depends(database.get_db),
-
     current_user: models.User = Depends(auth.require_auth)
-
 ):
-
+    import math
     from modules.notifications.service import NotificationService
-
-    notifs, _, _ = NotificationService.list_notifications(
-
+    page_size = 15
+    notifs, total_count, unread_count = NotificationService.list_notifications(
         db=db,
-
         current_user=current_user,
-
         category=category,
-
-        page=1,
-
-        page_size=100
-
+        page=page,
+        page_size=page_size
     )
-
+    total_pages = max(1, math.ceil(total_count / page_size)) if total_count > 0 else 1
     return templates.TemplateResponse(
-
         request=request,
-
         name="notifications/index.html",
-
         context={
-
             "user": current_user,
-
             "notifications": notifs,
-
-            "selected_category": category
-
+            "selected_category": category,
+            "current_page": page,
+            "total_pages": total_pages,
+            "total_count": total_count,
+            "unread_count": unread_count,
+            "page_size": page_size
         }
-
     )
 
 

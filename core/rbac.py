@@ -135,12 +135,41 @@ def is_examiner_or_admin(user: Any) -> bool:
 
 
 def is_candidate(user: Any) -> bool:
-
     """Check if user is a student or candidate."""
-
     norm = normalize_role(getattr(user, "role", None))
-
     return norm == PlatformRole.CANDIDATE
+
+
+def get_dashboard_url(user: Any) -> str:
+    """Centralized role-aware dashboard resolution mechanism."""
+    if not user:
+        return "/login"
+    norm = normalize_role(getattr(user, "role", None))
+    if norm == PlatformRole.SUPER_ADMIN:
+        return "/admin/dashboard"
+    if norm == PlatformRole.ORG_ADMIN:
+        return "/admin/organizations"
+    if norm in TEACHER_ROLES:
+        return "/teacher/dashboard"
+    if norm == "placement_officer":
+        return "/placement/dashboard"
+    return "/student/dashboard"
+
+
+def get_role_display_name(role: Optional[str]) -> str:
+    """Format canonical or legacy role string into clear UI display name."""
+    if not role:
+        return "Candidate"
+    norm = normalize_role(role)
+    if norm == PlatformRole.SUPER_ADMIN:
+        return "Super Admin"
+    if norm == PlatformRole.ORG_ADMIN:
+        return "Organization Admin"
+    if norm == PlatformRole.EXAMINER:
+        return "Examiner"
+    if norm == "placement_officer":
+        return "Placement Officer"
+    return "Candidate"
 
 
 
